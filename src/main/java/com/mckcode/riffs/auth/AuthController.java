@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.mckcode.riffs.RiffsApplication;
 import com.mckcode.riffs.user.User;
 import com.mckcode.riffs.user.UserService;
 
@@ -31,8 +31,12 @@ public class AuthController {
 	private final Sessions sessions;
 	private final GoogleSignIn google;
 	private final UserService users;
+	/** The game's display name (riffs.game-name), sent to the client so it's set in one place. */
+	private final String gameName;
 
-	public AuthController(AuthConfig config, Sessions sessions, GoogleSignIn google, UserService users) {
+	public AuthController(AuthConfig config, Sessions sessions, GoogleSignIn google, UserService users,
+			@Value("${riffs.game-name}") String gameName) {
+		this.gameName = gameName;
 		this.config = config;
 		this.sessions = sessions;
 		this.google = google;
@@ -41,14 +45,14 @@ public class AuthController {
 
 	@GetMapping("/api/health")
 	public Map<String, Object> health() {
-		return Map.of("ok", true, "game", RiffsApplication.GAME_NAME);
+		return Map.of("ok", true, "game", gameName);
 	}
 
 	/** How to sign in on this server, and who is signed in (if anyone). */
 	@GetMapping("/api/auth/config")
 	public Map<String, Object> getConfig(HttpServletRequest request) {
 		Map<String, Object> m = new LinkedHashMap<>();
-		m.put("game", RiffsApplication.GAME_NAME);
+		m.put("game", gameName);
 		m.put("googleClientId", config.googleClientId());
 		m.put("devLogin", config.devLogin());
 		Optional<User> me = sessions.read(request).flatMap(users::get);

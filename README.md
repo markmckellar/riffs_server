@@ -1,15 +1,16 @@
-# riffs_wf_server
+# riffs_server
 
-Server for a two-player riff guessing game **Riff Rivals** (name notes: `research/naming.md` in the goals
-repo, `mm_home/goals/riff_goals/`). Spring Boot 2.7 / Java 17, data in JSON files for now (`local/data/`).
-The web client is `../riffs_wf_client_vue`.
+Server for a two-player riff guessing game, for now called **Riff Rivals** (the name is the
+`riffs.game-name` setting; renaming notes: `research/naming.md` in the goals
+repo, `mm_home/goals/riffs_goals/`). Spring Boot 2.7 / Java 17, data in JSON files for now (`local/data/`).
+The web client is `../riffs_client_vue`.
 
 ## Run it locally
 ```bash
 ./run_dev.bash            # port 9095, name-only sign-in (no Google), data in local/data/
 mvn test                  # heuristic, tune library and game rule tests
 ```
-Then start the client (`cd ../riffs_wf_client_vue && npm run dev`) and open http://localhost:5175/.
+Then start the client (`cd ../riffs_client_vue && npm run dev`) and open http://localhost:5175/.
 
 ## Settings (`application.properties`, or `--name=value`)
 | Setting | Default | |
