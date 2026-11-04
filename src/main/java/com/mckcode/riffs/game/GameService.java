@@ -1,4 +1,4 @@
-package com.mckcode.rifts.game;
+package com.mckcode.riffs.game;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -16,13 +16,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.mckcode.rifts.events.EventService;
-import com.mckcode.rifts.music.MusicSense;
-import com.mckcode.rifts.music.Note;
-import com.mckcode.rifts.music.RiftRules;
-import com.mckcode.rifts.store.JsonFiles;
-import com.mckcode.rifts.user.User;
-import com.mckcode.rifts.user.UserService;
+import com.mckcode.riffs.events.EventService;
+import com.mckcode.riffs.music.MusicSense;
+import com.mckcode.riffs.music.Note;
+import com.mckcode.riffs.music.RiffRules;
+import com.mckcode.riffs.store.JsonFiles;
+import com.mckcode.riffs.user.User;
+import com.mckcode.riffs.user.UserService;
 
 /**
  * The game rules in action: starting games (with a person or a bot), sending riffs, guessing, hints, and turning
@@ -37,7 +37,7 @@ public class GameService {
 	private final EventService events;
 	private final Random random = new Random();
 
-	public GameService(@Value("${rifts.data-dir:local/data}") String dataDir, UserService users, EventService events) {
+	public GameService(@Value("${riffs.data-dir:local/data}") String dataDir, UserService users, EventService events) {
 		this.file = Paths.get(dataDir, "games.json");
 		this.games = new LinkedHashMap<>(JsonFiles.read(file, new TypeReference<Map<String, Game>>() {
 		}, new LinkedHashMap<>()));
@@ -120,26 +120,26 @@ public class GameService {
 	// ---- composing
 
 	/** The composer sends their riff. {@code tuneId} is set when it was picked from the library. */
-	public synchronized Game submitRift(String me, String gameId, List<Note> notes, String tuneId) {
+	public synchronized Game submitRiff(String me, String gameId, List<Note> notes, String tuneId) {
 		Game g = active(gameId, me);
 		Game.Round r = g.current();
 		if (!me.equals(r.composer) || !Game.Round.COMPOSING.equals(r.phase)) throw error(HttpStatus.CONFLICT, "it isn't your turn to compose");
-		String problem = RiftRules.problem(notes);
+		String problem = RiffRules.problem(notes);
 		if (problem != null) throw error(HttpStatus.BAD_REQUEST, problem);
 
 		MusicSense.Evaluation ev = MusicSense.evaluate(notes);
-		r.rift = List.copyOf(notes);
-		r.length = RiftRules.pitches(notes).size();
+		r.riff = List.copyOf(notes);
+		r.length = RiffRules.pitches(notes).size();
 		r.tuneId = tuneId == null || tuneId.isBlank() ? null : tuneId;
 		r.score = ev.score();
 		r.tier = ev.tier();
 		r.revealed = new ArrayList<>();
 		for (int i = 0; i < r.length; i++)
-			r.revealed.add(i == 0 ? RiftRules.pitches(notes).get(0) : null);
+			r.revealed.add(i == 0 ? RiffRules.pitches(notes).get(0) : null);
 		r.phase = Game.Round.GUESSING;
 		reward(g, me, r);
 		touch(g);
-		events.publish(r.listener, "rift_ready", g.id, name(me) + " sent you a riff to guess.");
+		events.publish(r.listener, "riff_ready", g.id, name(me) + " sent you a riff to guess.");
 		return g;
 	}
 
@@ -176,7 +176,7 @@ public class GameService {
 		if (notes == null || notes.size() != r.length) throw error(HttpStatus.BAD_REQUEST, "a guess needs " + r.length + " notes");
 		if (notes.stream().anyMatch(n -> n == null)) throw error(HttpStatus.BAD_REQUEST, "fill in every note");
 
-		List<Integer> answer = RiftRules.pitches(r.rift);
+		List<Integer> answer = RiffRules.pitches(r.riff);
 		Game.Guess guess = new Game.Guess();
 		guess.notes = List.copyOf(notes);
 		guess.marks = new ArrayList<>();
@@ -220,7 +220,7 @@ public class GameService {
 		if (s.hints <= 0) throw error(HttpStatus.CONFLICT, "no hints left");
 		int slot = r.revealed.indexOf(null);
 		if (slot < 0) throw error(HttpStatus.CONFLICT, "you already know every note");
-		r.revealed.set(slot, RiftRules.pitches(r.rift).get(slot));
+		r.revealed.set(slot, RiffRules.pitches(r.riff).get(slot));
 		r.hintsUsed++;
 		s.hints--;
 		touch(g);
@@ -377,7 +377,7 @@ public class GameService {
 		m.put("guesses", r.guesses);
 		m.put("hintsUsed", r.hintsUsed);
 		m.put("fromLibrary", r.tuneId != null);
-		if (r.rift != null) m.put("rift", r.rift);
+		if (r.riff != null) m.put("riff", r.riff);
 		if (composer || r.over()) {
 			m.put("score", r.score);
 			m.put("tier", r.tier);

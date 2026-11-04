@@ -1,11 +1,11 @@
-package com.mckcode.rifts.game;
+package com.mckcode.riffs.game;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.mckcode.rifts.music.Note;
+import com.mckcode.riffs.music.Note;
 
 /** One game between two players, as stored in games.json. Plain fields so Jackson can read and write it. */
 public class Game {
@@ -46,7 +46,7 @@ public class Game {
 		public String composer;
 		public String listener;
 		public String phase = COMPOSING;
-		public List<Note> rift;
+		public List<Note> riff;
 		/** How many sounding notes (the length of every guess). */
 		public int length;
 		/** Library tune it came from, if the composer picked one. */

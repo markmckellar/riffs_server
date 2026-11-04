@@ -1,4 +1,4 @@
-package com.mckcode.rifts;
+package com.mckcode.riffs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,12 +14,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.mckcode.rifts.events.EventService;
-import com.mckcode.rifts.game.Game;
-import com.mckcode.rifts.game.GameRules;
-import com.mckcode.rifts.game.GameService;
-import com.mckcode.rifts.music.RiftRules;
-import com.mckcode.rifts.user.UserService;
+import com.mckcode.riffs.events.EventService;
+import com.mckcode.riffs.game.Game;
+import com.mckcode.riffs.game.GameRules;
+import com.mckcode.riffs.game.GameService;
+import com.mckcode.riffs.music.RiffRules;
+import com.mckcode.riffs.user.UserService;
 
 class GameServiceTest {
 
@@ -29,7 +29,7 @@ class GameServiceTest {
 
 	@BeforeEach
 	void setUp() throws Exception {
-		String dir = Files.createTempDirectory("rifts").toString();
+		String dir = Files.createTempDirectory("riffs").toString();
 		UserService users = new UserService(dir);
 		users.signedIn(a, "Ann", null);
 		users.signedIn(b, "Bob", null);
@@ -41,15 +41,15 @@ class GameServiceTest {
 	void aRoundFromRiffToGuess() {
 		Game g = games.start(a, b);
 		assertEquals(a, g.current().composer);
-		assertThrows(ResponseStatusException.class, () -> games.submitRift(b, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1 C4:1"), null));
-		assertThrows(ResponseStatusException.class, () -> games.submitRift(a, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1"), null));
+		assertThrows(ResponseStatusException.class, () -> games.submitRiff(b, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1 C4:1"), null));
+		assertThrows(ResponseStatusException.class, () -> games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1"), null));
 
-		games.submitRift(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
+		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
 		Game.Round r = g.current();
 		assertEquals(7, r.length);
 		assertEquals(60, r.revealed.get(0));    // the first note is given
 		assertNull(r.revealed.get(1));
-		assertTrue(events.after(b, 0).stream().anyMatch(e -> e.type().equals("rift_ready")));
+		assertTrue(events.after(b, 0).stream().anyMatch(e -> e.type().equals("riff_ready")));
 
 		// the listener can't see the score
 		@SuppressWarnings("unchecked")
@@ -73,7 +73,7 @@ class GameServiceTest {
 		Game g = games.start(a, b);
 		for (int round = 0; round < 6 && Game.ACTIVE.equals(g.status); round++) {
 			Game.Round r = g.current();
-			games.submitRift(r.composer, g.id, MusicSenseTest.notes("E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:2"), null);
+			games.submitRiff(r.composer, g.id, MusicSenseTest.notes("E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:2"), null);
 			if (r.listener.equals(b)) // Bob always fails, Ann always gets it first time
 				for (int i = 0; i < GameRules.STRINGS; i++)
 					games.guess(b, g.id, List.of(64, 72, 72, 72, 72, 72, 72));
@@ -87,18 +87,18 @@ class GameServiceTest {
 	@Test
 	void goldRiffsEarnTokensButLibraryRiffsDont() {
 		Game g = games.start(a, b);
-		games.submitRift(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), "twinkle");
+		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), "twinkle");
 		assertEquals(0, g.state.get(a).hints + g.state.get(a).extraStrings);
-		assertTrue(RiftRules.MAX_NOTES >= 7);
+		assertTrue(RiffRules.MAX_NOTES >= 7);
 	}
 
 	@Test
 	void shortGoldRiffsEarnNoExtraString() {
 		Game g = games.start(a, b);
-		games.submitRift(a, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1 C4:1"), null);
+		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1 C4:1"), null);
 		assertEquals(0, g.state.get(a).extraStrings);
 		Game g2 = games.start(b, "bot:robo_riff");
-		games.submitRift(b, g2.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
+		games.submitRiff(b, g2.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
 		assertEquals(1, g2.state.get(b).extraStrings);
 	}
 }

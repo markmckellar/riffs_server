@@ -1,9 +1,9 @@
-package com.mckcode.rifts.music;
+package com.mckcode.riffs.music;
 
 import java.util.List;
 
 /** What a riff may contain (see research/music_structure.md for why 4–8 notes). */
-public final class RiftRules {
+public final class RiffRules {
 
 	public static final int MIN_NOTES = 4;
 	public static final int MAX_NOTES = 8;
@@ -14,7 +14,7 @@ public final class RiftRules {
 	/** Allowed note lengths in beats: sixteenth to whole, with dotted eighth/quarter/half. */
 	public static final double[] LENGTHS = { 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4 };
 
-	private RiftRules() {
+	private RiffRules() {
 	}
 
 	/** Why these notes aren't a valid riff, or null if they are. */

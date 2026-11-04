@@ -1,4 +1,4 @@
-package com.mckcode.rifts.user;
+package com.mckcode.riffs.user;
 
 /** A player. Ids: "g:<google subject>" for Google sign-ins, "dev:<name>" for test sign-ins, "bot:<name>" for bots. */
 public class User {

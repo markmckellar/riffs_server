@@ -9,10 +9,10 @@
 		<relativePath/>
 	</parent>
 	<groupId>com.mckcode</groupId>
-	<artifactId>rifts_wf_server</artifactId>
+	<artifactId>riffs_wf_server</artifactId>
 	<version>0.1.0</version>
-	<name>rifts_wf_server</name>
-	<description>Server for the riff guessing game (working name Riff Rivals)</description>
+	<name>riffs_wf_server</name>
+	<description>Server for the riff guessing game Riff Rivals</description>
 	<properties>
 		<java.version>17</java.version>
 	</properties>

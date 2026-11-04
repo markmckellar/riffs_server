@@ -1,4 +1,4 @@
-package com.mckcode.rifts.store;
+package com.mckcode.riffs.store;
 
 import java.io.IOException;
 import java.nio.file.Files;

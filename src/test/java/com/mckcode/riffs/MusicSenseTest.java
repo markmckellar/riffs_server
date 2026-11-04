@@ -1,4 +1,4 @@
-package com.mckcode.rifts;
+package com.mckcode.riffs;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -7,9 +7,9 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.mckcode.rifts.library.TuneLibrary;
-import com.mckcode.rifts.music.MusicSense;
-import com.mckcode.rifts.music.Note;
+import com.mckcode.riffs.library.TuneLibrary;
+import com.mckcode.riffs.music.MusicSense;
+import com.mckcode.riffs.music.Note;
 
 class MusicSenseTest {
 

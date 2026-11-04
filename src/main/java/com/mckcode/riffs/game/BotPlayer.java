@@ -1,4 +1,4 @@
-package com.mckcode.rifts.game;
+package com.mckcode.riffs.game;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,8 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.mckcode.rifts.library.TuneLibrary;
-import com.mckcode.rifts.music.RiftRules;
+import com.mckcode.riffs.library.TuneLibrary;
+import com.mckcode.riffs.music.RiffRules;
 
 /**
  * Plays the bots' turns. A bot composes by picking a phrase from the public-domain library, and guesses by
@@ -32,8 +32,8 @@ public class BotPlayer {
 	/** game id + turn → when the bot may move. */
 	private final Map<String, Long> due = new ConcurrentHashMap<>();
 
-	public BotPlayer(GameService games, TuneLibrary library, @Value("${rifts.bot.min-delay:3}") int minDelay,
-			@Value("${rifts.bot.max-delay:8}") int maxDelay) {
+	public BotPlayer(GameService games, TuneLibrary library, @Value("${riffs.bot.min-delay:3}") int minDelay,
+			@Value("${riffs.bot.max-delay:8}") int maxDelay) {
 		this.games = games;
 		this.library = library;
 		this.minDelay = minDelay;
@@ -61,9 +61,9 @@ public class BotPlayer {
 	void move(Game g) {
 		Game.Round r = g.current();
 		if (Game.Round.COMPOSING.equals(r.phase)) {
-			int len = RiftRules.MIN_NOTES + random.nextInt(RiftRules.MAX_NOTES - RiftRules.MIN_NOTES + 1);
+			int len = RiffRules.MIN_NOTES + random.nextInt(RiffRules.MAX_NOTES - RiffRules.MIN_NOTES + 1);
 			TuneLibrary.Fragment f = library.randomFragment(random, len);
-			games.submitRift(r.composer, g.id, f.notes(), f.tuneId());
+			games.submitRiff(r.composer, g.id, f.notes(), f.tuneId());
 		}
 		else {
 			games.guess(r.listener, g.id, guess(r, random));
@@ -79,7 +79,7 @@ public class BotPlayer {
 				continue;
 			}
 			List<Integer> cands = new ArrayList<>();
-			for (int p = RiftRules.LOWEST; p <= RiftRules.HIGHEST; p++)
+			for (int p = RiffRules.LOWEST; p <= RiffRules.HIGHEST; p++)
 				if (fits(p, i, r.guesses)) cands.add(p);
 			int prev = out.isEmpty() ? r.revealed.get(0) : out.get(out.size() - 1);
 			if (cands.isEmpty()) {

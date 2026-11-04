@@ -1,4 +1,4 @@
-package com.mckcode.rifts.auth;
+package com.mckcode.riffs.auth;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -10,7 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.mckcode.rifts.user.UserService;
+import com.mckcode.riffs.user.UserService;
 
 /**
  * Every {@code /api/} call needs a signed-in player, except signing in itself and the health check. The player's
@@ -18,7 +18,7 @@ import com.mckcode.rifts.user.UserService;
  */
 public class AuthFilter extends OncePerRequestFilter {
 
-	public static final String USER_ID = "rifts.userId";
+	public static final String USER_ID = "riffs.userId";
 
 	private final Sessions sessions;
 	private final UserService users;

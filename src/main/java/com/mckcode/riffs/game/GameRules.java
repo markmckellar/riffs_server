@@ -1,4 +1,4 @@
-package com.mckcode.rifts.game;
+package com.mckcode.riffs.game;
 
 /** The tunable numbers of the game (research/rewards_and_rules.md explains them). */
 public final class GameRules {

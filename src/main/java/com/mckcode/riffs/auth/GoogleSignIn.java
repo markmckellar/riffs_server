@@ -1,4 +1,4 @@
-package com.mckcode.rifts.auth;
+package com.mckcode.riffs.auth;
 
 import java.util.List;
 import java.util.Locale;

@@ -1,4 +1,4 @@
-package com.mckcode.rifts.auth;
+package com.mckcode.riffs.auth;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.mckcode.rifts.RiftsApplication;
-import com.mckcode.rifts.user.User;
-import com.mckcode.rifts.user.UserService;
+import com.mckcode.riffs.RiffsApplication;
+import com.mckcode.riffs.user.User;
+import com.mckcode.riffs.user.UserService;
 
 /** Signing in (Google, or a typed name on a test server) and out, and "who am I". */
 @RestController
@@ -41,14 +41,14 @@ public class AuthController {
 
 	@GetMapping("/api/health")
 	public Map<String, Object> health() {
-		return Map.of("ok", true, "game", RiftsApplication.GAME_NAME);
+		return Map.of("ok", true, "game", RiffsApplication.GAME_NAME);
 	}
 
 	/** How to sign in on this server, and who is signed in (if anyone). */
 	@GetMapping("/api/auth/config")
 	public Map<String, Object> getConfig(HttpServletRequest request) {
 		Map<String, Object> m = new LinkedHashMap<>();
-		m.put("game", RiftsApplication.GAME_NAME);
+		m.put("game", RiffsApplication.GAME_NAME);
 		m.put("googleClientId", config.googleClientId());
 		m.put("devLogin", config.devLogin());
 		Optional<User> me = sessions.read(request).flatMap(users::get);

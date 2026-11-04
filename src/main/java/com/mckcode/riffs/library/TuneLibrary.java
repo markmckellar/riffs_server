@@ -1,4 +1,4 @@
-package com.mckcode.rifts.library;
+package com.mckcode.riffs.library;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -11,9 +11,9 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mckcode.rifts.music.MusicSense;
-import com.mckcode.rifts.music.Note;
-import com.mckcode.rifts.music.RiftRules;
+import com.mckcode.riffs.music.MusicSense;
+import com.mckcode.riffs.music.Note;
+import com.mckcode.riffs.music.RiffRules;
 
 /**
  * The public-domain tunes in tunes.json, and the riff-sized pieces cut from them at phrase boundaries
@@ -121,12 +121,12 @@ public class TuneLibrary {
 			for (int j = i; j < units.size(); j++) {
 				acc.addAll(units.get(j).notes());
 				List<Note> trimmed = trimRests(acc);
-				if (sounding(trimmed) > RiftRules.MAX_NOTES) {
+				if (sounding(trimmed) > RiffRules.MAX_NOTES) {
 					if (j == i) {    // one long sub-phrase: its opening bars
 						Unit u = units.get(i);
 						for (int k = u.barEnds().size() - 1; k >= 0; k--) {
 							List<Note> head = trimRests(u.notes().subList(0, u.barEnds().get(k)));
-							if (sounding(head) <= RiftRules.MAX_NOTES) {
+							if (sounding(head) <= RiffRules.MAX_NOTES) {
 								add(out, id, title, u.start(), head, false);
 								break;
 							}
@@ -141,7 +141,7 @@ public class TuneLibrary {
 	}
 
 	private static void add(List<Fragment> out, String id, String title, int start, List<Note> notes, boolean phraseEnd) {
-		if (RiftRules.problem(notes) != null) return;
+		if (RiffRules.problem(notes) != null) return;
 		out.add(new Fragment(id, title, start, List.copyOf(notes), MusicSense.evaluate(notes).score(), phraseEnd));
 	}
 

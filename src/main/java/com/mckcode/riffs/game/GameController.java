@@ -1,4 +1,4 @@
-package com.mckcode.rifts.game;
+package com.mckcode.riffs.game;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,20 +15,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.mckcode.rifts.auth.AuthFilter;
-import com.mckcode.rifts.events.EventService;
-import com.mckcode.rifts.library.TuneLibrary;
-import com.mckcode.rifts.music.MusicSense;
-import com.mckcode.rifts.music.Note;
-import com.mckcode.rifts.music.RiftRules;
-import com.mckcode.rifts.user.User;
-import com.mckcode.rifts.user.UserService;
+import com.mckcode.riffs.auth.AuthFilter;
+import com.mckcode.riffs.events.EventService;
+import com.mckcode.riffs.library.TuneLibrary;
+import com.mckcode.riffs.music.MusicSense;
+import com.mckcode.riffs.music.Note;
+import com.mckcode.riffs.music.RiffRules;
+import com.mckcode.riffs.user.User;
+import com.mckcode.riffs.user.UserService;
 
 /** The game API. Everything is JSON; see the README for the list. */
 @RestController
 public class GameController {
 
-	public record RiftBody(List<Note> notes, String tuneId) {
+	public record RiffBody(List<Note> notes, String tuneId) {
 	}
 
 	public record GuessBody(List<Integer> notes) {
@@ -83,9 +83,9 @@ public class GameController {
 		return games.view(g, me);
 	}
 
-	@PostMapping("/api/games/{id}/rift")
-	public Map<String, Object> rift(@RequestAttribute(AuthFilter.USER_ID) String me, @PathVariable String id, @RequestBody RiftBody body) {
-		return games.view(games.submitRift(me, id, body.notes(), body.tuneId()), me);
+	@PostMapping("/api/games/{id}/riff")
+	public Map<String, Object> riff(@RequestAttribute(AuthFilter.USER_ID) String me, @PathVariable String id, @RequestBody RiffBody body) {
+		return games.view(games.submitRiff(me, id, body.notes(), body.tuneId()), me);
 	}
 
 	@PostMapping("/api/games/{id}/guess")
@@ -109,23 +109,23 @@ public class GameController {
 	}
 
 	/** Score a riff while composing (nothing is saved). */
-	@PostMapping("/api/rifts/evaluate")
-	public Map<String, Object> evaluate(@RequestBody RiftBody body) {
+	@PostMapping("/api/riffs/evaluate")
+	public Map<String, Object> evaluate(@RequestBody RiffBody body) {
 		Map<String, Object> m = new LinkedHashMap<>();
 		MusicSense.Evaluation ev = MusicSense.evaluate(body.notes() == null ? List.of() : body.notes());
 		m.put("score", ev.score());
 		m.put("tier", ev.tier());
 		m.put("key", ev.key());
 		m.put("reasons", ev.reasons());
-		m.put("problem", RiftRules.problem(body.notes()));
+		m.put("problem", RiffRules.problem(body.notes()));
 		return m;
 	}
 
 	/** The limits the client's staff editor needs. */
-	@GetMapping("/api/rifts/rules")
+	@GetMapping("/api/riffs/rules")
 	public Map<String, Object> rules() {
-		return Map.of("minNotes", RiftRules.MIN_NOTES, "maxNotes", RiftRules.MAX_NOTES, "maxRests", RiftRules.MAX_RESTS,
-				"lowest", RiftRules.LOWEST, "highest", RiftRules.HIGHEST, "lengths", RiftRules.LENGTHS,
+		return Map.of("minNotes", RiffRules.MIN_NOTES, "maxNotes", RiffRules.MAX_NOTES, "maxRests", RiffRules.MAX_RESTS,
+				"lowest", RiffRules.LOWEST, "highest", RiffRules.HIGHEST, "lengths", RiffRules.LENGTHS,
 				"strings", GameRules.STRINGS, "encores", GameRules.START_ENCORES);
 	}
 

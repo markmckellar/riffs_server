@@ -1,4 +1,4 @@
-package com.mckcode.rifts.music;
+package com.mckcode.riffs.music;
 
 import java.util.ArrayList;
 import java.util.List;

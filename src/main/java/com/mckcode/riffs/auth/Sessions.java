@@ -1,4 +1,4 @@
-package com.mckcode.rifts.auth;
+package com.mckcode.riffs.auth;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class Sessions {
 
-	public static final String COOKIE = "rifts_session";
+	public static final String COOKIE = "riffs_session";
 	private static final ObjectMapper JSON = new ObjectMapper();
 
 	private final byte[] key;

@@ -1,4 +1,4 @@
-package com.mckcode.rifts.user;
+package com.mckcode.riffs.user;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.mckcode.rifts.store.JsonFiles;
+import com.mckcode.riffs.store.JsonFiles;
 
 /** The players (users.json), the built-in bots, and who has been seen lately ("online"). */
 @Service
@@ -32,7 +32,7 @@ public class UserService {
 	private final Map<String, User> users;
 	private final Map<String, Long> lastSeen = new ConcurrentHashMap<>();
 
-	public UserService(@Value("${rifts.data-dir:local/data}") String dataDir) {
+	public UserService(@Value("${riffs.data-dir:local/data}") String dataDir) {
 		this.file = Paths.get(dataDir, "users.json");
 		this.users = new LinkedHashMap<>(JsonFiles.read(file, new TypeReference<Map<String, User>>() {
 		}, new LinkedHashMap<>()));

@@ -1,4 +1,4 @@
-package com.mckcode.rifts.events;
+package com.mckcode.riffs.events;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
