@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import com.mckcode.riffs.library.TuneLibrary;
 import com.mckcode.riffs.music.RiffRules;
+import com.mckcode.riffs.user.Bots;
 
 /**
  * Plays the bots' turns. A bot composes by picking a phrase from the public-domain library, and guesses by
@@ -61,18 +62,25 @@ public class BotPlayer {
 	void move(Game g) {
 		Game.Round r = g.current();
 		if (Game.Round.COMPOSING.equals(r.phase)) {
-			int len = RiffRules.MIN_NOTES + random.nextInt(RiffRules.MAX_NOTES - RiffRules.MIN_NOTES + 1);
+			Bots.Level lv = level(r.composer);
+			int len = lv.minNotes() + random.nextInt(lv.maxNotes() - lv.minNotes() + 1);
 			TuneLibrary.Fragment f = library.randomFragment(random, len);
 			games.submitRiff(r.composer, g.id, f.notes(), f.tuneId());
 		}
 		else {
-			games.guess(r.listener, g.id, guess(r, random));
+			games.guess(r.listener, g.id, guess(r, random, level(r.listener)));
 		}
 	}
 
-	/** A guess that fits every mark so far. */
-	static List<Integer> guess(Game.Round r, Random random) {
+	private static Bots.Level level(String botId) {
+		return Bots.find(botId).map(Bots.Bot::level).orElse(Bots.MEDIUM);
+	}
+
+	/** A guess that fits every mark so far; how careful it is depends on the bot's level. */
+	static List<Integer> guess(Game.Round r, Random random, Bots.Level level) {
 		List<Integer> out = new ArrayList<>();
+		List<Game.Guess> remembered = level.memory() <= 0 || r.guesses.size() <= level.memory() ? r.guesses
+				: r.guesses.subList(r.guesses.size() - level.memory(), r.guesses.size());
 		for (int i = 0; i < r.length; i++) {
 			if (r.revealed.get(i) != null) {
 				out.add(r.revealed.get(i));
@@ -80,18 +88,18 @@ public class BotPlayer {
 			}
 			List<Integer> cands = new ArrayList<>();
 			for (int p = RiffRules.LOWEST; p <= RiffRules.HIGHEST; p++)
-				if (fits(p, i, r.guesses)) cands.add(p);
+				if (fits(p, i, remembered)) cands.add(p);
 			int prev = out.isEmpty() ? r.revealed.get(0) : out.get(out.size() - 1);
 			if (cands.isEmpty()) {
 				out.add(prev);
 				continue;
 			}
-			if (random.nextInt(4) == 0) {    // now and then a wild guess, so bots can lose
+			if (random.nextDouble() < level.wildness()) {    // now and then a wild guess, so bots can lose
 				out.add(cands.get(random.nextInt(cands.size())));
 				continue;
 			}
 			cands.sort((a, b) -> Integer.compare(Math.abs(a - prev), Math.abs(b - prev)));
-			int pick = Math.min(cands.size() - 1, random.nextInt(Math.min(3, cands.size())));
+			int pick = random.nextInt(Math.min(level.choices(), cands.size()));
 			out.add(cands.get(pick));
 		}
 		return out;

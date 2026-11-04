@@ -21,6 +21,7 @@ import com.mckcode.riffs.library.TuneLibrary;
 import com.mckcode.riffs.music.MusicSense;
 import com.mckcode.riffs.music.Note;
 import com.mckcode.riffs.music.RiffRules;
+import com.mckcode.riffs.user.Bots;
 import com.mckcode.riffs.user.User;
 import com.mckcode.riffs.user.UserService;
 
@@ -58,6 +59,10 @@ public class GameController {
 			m.put("id", u.id);
 			m.put("name", u.name);
 			m.put("bot", u.bot);
+			Bots.find(u.id).ifPresent(b -> {
+				m.put("level", b.level().name());
+				m.put("about", b.about());
+			});
 			m.put("online", u.bot || users.isOnline(u.id));
 			m.put("wins", u.wins);
 			m.put("losses", u.losses);

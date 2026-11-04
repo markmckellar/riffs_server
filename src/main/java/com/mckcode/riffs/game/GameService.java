@@ -21,6 +21,7 @@ import com.mckcode.riffs.music.MusicSense;
 import com.mckcode.riffs.music.Note;
 import com.mckcode.riffs.music.RiffRules;
 import com.mckcode.riffs.store.JsonFiles;
+import com.mckcode.riffs.user.Bots;
 import com.mckcode.riffs.user.User;
 import com.mckcode.riffs.user.UserService;
 
@@ -78,16 +79,13 @@ public class GameService {
 	 */
 	public synchronized Game start(String me, String opponentId) {
 		String opp = opponentId;
-		if (opp == null || opp.isBlank()) {
-			List<User> free = users.all().stream()
-					.filter(u -> !u.bot && !u.id.equals(me) && users.isOnline(u.id) && activeBetween(me, u.id) == null).toList();
-			opp = !free.isEmpty() ? free.get(random.nextInt(free.size())).id
-					: UserService.BOTS.get(random.nextInt(UserService.BOTS.size())).id;
-		}
+		boolean quick = opp == null || opp.isBlank();
+		if (quick) opp = quickMatch(me);
 		if (opp.equals(me)) throw error(HttpStatus.BAD_REQUEST, "you can't play yourself");
 		if (users.get(opp).isEmpty()) throw error(HttpStatus.NOT_FOUND, "no such player");
+		// challenging someone you're already playing opens that game; Quick match always starts a new one
 		Game existing = activeBetween(me, opp);
-		if (existing != null) return existing;
+		if (existing != null && !quick) return existing;
 
 		Game g = new Game();
 		g.id = UUID.randomUUID().toString().substring(0, 8);
@@ -101,6 +99,21 @@ public class GameService {
 		save();
 		events.publish(opp, "game_started", g.id, name(me) + " started a game with you.");
 		return g;
+	}
+
+	/**
+	 * Someone online who isn't already playing you; otherwise an easy or medium bot you aren't playing yet; otherwise
+	 * any easy or medium bot (bots can play many games at once). So there is always an opponent, even with nobody else signed up.
+	 */
+	private String quickMatch(String me) {
+		List<User> people = users.all().stream()
+				.filter(u -> !u.bot && !u.id.equals(me) && users.isOnline(u.id) && activeBetween(me, u.id) == null).toList();
+		if (!people.isEmpty()) return people.get(random.nextInt(people.size())).id;
+		// hard bots only when picked by name: a random opponent shouldn't be one that wins 97% of the time
+		List<Bots.Bot> friendly = Bots.ALL.stream().filter(b -> b.level() != Bots.HARD).toList();
+		List<Bots.Bot> freeBots = friendly.stream().filter(b -> activeBetween(me, b.id()) == null).toList();
+		List<Bots.Bot> from = freeBots.isEmpty() ? friendly : freeBots;
+		return from.get(random.nextInt(from.size())).id();
 	}
 
 	private Game activeBetween(String a, String b) {
@@ -354,6 +367,7 @@ public class GameService {
 		m.put("id", id);
 		m.put("name", u == null ? id : u.name);
 		m.put("bot", u != null && u.bot);
+		Bots.find(id).ifPresent(b -> m.put("level", b.level().name()));
 		m.put("online", u != null && (u.bot || users.isOnline(id)));
 		m.put("encores", s.encores);
 		m.put("points", s.points);

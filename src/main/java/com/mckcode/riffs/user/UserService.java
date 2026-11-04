@@ -23,11 +23,6 @@ public class UserService {
 	/** Seen within this long counts as online. The client polls every few seconds while open. */
 	public static final long ONLINE_MS = 60_000;
 
-	public static final List<User> BOTS = List.of(
-			new User("bot:robo_riff", "Robo Riff (bot)", null, true),
-			new User("bot:tin_pan", "Tin Pan (bot)", null, true),
-			new User("bot:metronome", "Metronome Mo (bot)", null, true));
-
 	private final Path file;
 	private final Map<String, User> users;
 	private final Map<String, Long> lastSeen = new ConcurrentHashMap<>();
@@ -36,8 +31,12 @@ public class UserService {
 		this.file = Paths.get(dataDir, "users.json");
 		this.users = new LinkedHashMap<>(JsonFiles.read(file, new TypeReference<Map<String, User>>() {
 		}, new LinkedHashMap<>()));
-		for (User b : BOTS)
-			users.putIfAbsent(b.id, b);
+		// the bots, kept up to date with Bots.java (their wins and losses carry over)
+		for (Bots.Bot b : Bots.ALL) {
+			User u = users.computeIfAbsent(b.id(), id -> new User(id, b.name(), null, true));
+			u.name = b.name();
+			u.bot = true;
+		}
 	}
 
 	public synchronized Optional<User> get(String id) {
