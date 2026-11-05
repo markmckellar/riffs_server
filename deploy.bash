@@ -1,7 +1,8 @@
 #!/bin/bash
 # Builds the game (server + web client) on this machine and puts it on the live server, then checks it answers.
 #   ./deploy.bash              build, test, copy, restart
-#   ./deploy.bash --skip-tests faster, when only the client changed
+#   ./deploy.bash --skip-tests faster
+#   ./deploy.bash --client-only   only the web client: copies the new files, no server restart (games carry on)
 # The server's setup is described in mm_home/goals/riffs_goals/SERVER_SETUP.md.
 set -euo pipefail
 
@@ -15,6 +16,13 @@ REMOTE_DIR=riffs_server    # in mm's home on the server
 
 echo "== web client"
 (cd "$CLIENT" && source ~/.nvm/nvm.sh >/dev/null && nvm use >/dev/null && npm run build >/dev/null)
+
+if [ "${1:-}" = "--client-only" ]; then
+  echo "== copy web client to $HOST (no restart)"
+  rsync -az --delete "$CLIENT/dist/" "$HOST:$REMOTE_DIR/local/static/"
+  curl -sf "$URL/" | grep -q '<div id="app">' && echo "up: new client served" && exit 0
+  echo "the page didn't come back" >&2; exit 1
+fi
 
 echo "== server"
 if [ "${1:-}" = "--skip-tests" ]; then
