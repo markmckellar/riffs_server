@@ -32,7 +32,7 @@ public class GameController {
 	public record RiffBody(List<Note> notes, String tuneId) {
 	}
 
-	public record GuessBody(List<Integer> notes) {
+	public record GuessBody(List<Integer> notes, List<Double> beats) {
 	}
 
 	public record StartBody(String opponentId) {
@@ -95,7 +95,7 @@ public class GameController {
 
 	@PostMapping("/api/games/{id}/guess")
 	public Map<String, Object> guess(@RequestAttribute(AuthFilter.USER_ID) String me, @PathVariable String id, @RequestBody GuessBody body) {
-		return games.view(games.guess(me, id, body.notes()), me);
+		return games.view(games.guess(me, id, body.notes(), body.beats()), me);
 	}
 
 	@PostMapping("/api/games/{id}/hint")

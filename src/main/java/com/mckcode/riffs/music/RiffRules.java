@@ -11,8 +11,11 @@ public final class RiffRules {
 	/** Lowest and highest pitches the staff offers: G3 to C6. */
 	public static final int LOWEST = 55;
 	public static final int HIGHEST = 84;
-	/** Allowed note lengths in beats: sixteenth to whole, with dotted eighth/quarter/half. */
-	public static final double[] LENGTHS = { 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4 };
+	/**
+	 * Allowed note lengths in beats: the keys players have, eighth ⅛, quarter ¼, dotted quarter ⅜, half ½, dotted
+	 * half ¾, whole 1. Guesses must match lengths too, so riffs may only use lengths a player can enter.
+	 */
+	public static final double[] LENGTHS = { 0.5, 1, 1.5, 2, 3, 4 };
 
 	private RiffRules() {
 	}

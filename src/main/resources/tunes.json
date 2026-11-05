@@ -1,5 +1,5 @@
 {
-  "_about": "Public-domain melodies, transcribed by hand (not copied from any edition). Each token is PITCH:BEATS (R = rest). '|' is a bar line, '/' ends a sub-phrase, '//' ends a phrase. Riffs are cut only at '/' and '//' (and at bar lines when a sub-phrase is longer than 8 notes). See research/public_domain_tunes.md.",
+  "_about": "Lengths are only 0.5, 1, 1.5, 2, 3, 4 beats (the keys players have; guesses must match lengths). Public-domain melodies, transcribed by hand (not copied from any edition). Each token is PITCH:BEATS (R = rest). '|' is a bar line, '/' ends a sub-phrase, '//' ends a phrase. Riffs are cut only at '/' and '//' (and at bar lines when a sub-phrase is longer than 8 notes). See research/public_domain_tunes.md.",
   "tunes": [
     { "id": "ode_to_joy", "title": "Ode to Joy", "source": "Beethoven, Symphony No. 9", "year": 1824, "meter": "4/4",
       "notes": "E4:1 E4:1 F4:1 G4:1 | G4:1 F4:1 E4:1 D4:1 / C4:1 C4:1 D4:1 E4:1 | E4:1.5 D4:0.5 D4:2 // E4:1 E4:1 F4:1 G4:1 | G4:1 F4:1 E4:1 D4:1 / C4:1 C4:1 D4:1 E4:1 | D4:1.5 C4:0.5 C4:2 //" },
@@ -22,7 +22,7 @@
     { "id": "london_bridge", "title": "London Bridge Is Falling Down", "source": "English nursery song", "year": 1744, "meter": "4/4",
       "notes": "G4:1.5 A4:0.5 G4:1 F4:1 | E4:1 F4:1 G4:2 / D4:1 E4:1 F4:2 | E4:1 F4:1 G4:2 // G4:1.5 A4:0.5 G4:1 F4:1 | E4:1 F4:1 G4:2 / D4:2 G4:2 | E4:1 C4:3 //" },
     { "id": "happy_birthday", "title": "Happy Birthday to You", "source": "Mildred and Patty Hill (public domain in the US since a 2015 court ruling)", "year": 1893, "meter": "3/4",
-      "notes": "G3:0.75 G3:0.25 | A3:1 G3:1 C4:1 | B3:2 / G3:0.75 G3:0.25 | A3:1 G3:1 D4:1 | C4:2 // G3:0.75 G3:0.25 | G4:1 E4:1 C4:1 | B3:1 A3:1 / F4:0.75 F4:0.25 | E4:1 C4:1 D4:1 | C4:2 //" },
+      "notes": "G3:0.5 G3:0.5 | A3:1 G3:1 C4:1 | B3:2 / G3:0.5 G3:0.5 | A3:1 G3:1 D4:1 | C4:2 // G3:0.5 G3:0.5 | G4:1 E4:1 C4:1 | B3:1 A3:1 / F4:0.5 F4:0.5 | E4:1 C4:1 D4:1 | C4:2 //" },
     { "id": "old_macdonald", "title": "Old MacDonald Had a Farm", "source": "American folk song", "year": 1917, "meter": "4/4",
       "notes": "G4:1 G4:1 G4:1 D4:1 | E4:1 E4:1 D4:2 / B4:1 B4:1 A4:1 A4:1 | G4:3 // D4:1 | G4:1 G4:1 G4:1 D4:1 | E4:1 E4:1 D4:2 / B4:1 B4:1 A4:1 A4:1 | G4:3 //" },
     { "id": "fur_elise", "title": "Für Elise (opening)", "source": "Beethoven", "year": 1810, "meter": "3/8",
@@ -40,7 +40,7 @@
     { "id": "camptown", "title": "Camptown Races", "source": "Stephen Foster", "year": 1850, "meter": "2/4",
       "notes": "G4:0.5 G4:0.5 E4:0.5 G4:0.5 | A4:0.5 G4:0.5 E4:1 / E4:0.5 D4:1.5 / E4:0.5 D4:1.5 // G4:0.5 G4:0.5 E4:0.5 G4:0.5 | A4:0.5 G4:0.5 E4:1 / D4:1 E4:0.5 D4:0.5 | C4:2 //" },
     { "id": "morning", "title": "Morning Mood", "source": "Grieg, Peer Gynt", "year": 1875, "meter": "6/8",
-      "notes": "G4:0.5 E4:0.5 D4:0.5 C4:0.5 D4:0.5 E4:0.5 / G4:0.5 E4:0.5 D4:0.5 C4:0.5 D4:0.5 E4:0.25 D4:0.25 / E4:0.5 G4:0.5 E4:0.5 G4:0.5 A4:0.5 E4:0.5 / A4:0.5 G4:0.5 E4:0.5 D4:1.5 //" },
+      "notes": "G4:0.5 E4:0.5 D4:0.5 C4:0.5 D4:0.5 E4:0.5 / G4:0.5 E4:0.5 D4:0.5 C4:0.5 D4:0.5 E4:0.5 / D4:0.5 E4:0.5 G4:0.5 E4:0.5 G4:0.5 A4:0.5 / E4:0.5 A4:0.5 G4:0.5 E4:0.5 D4:0.5 C4:1.5 //" },
     { "id": "beethoven5", "title": "Symphony No. 5 (opening)", "source": "Beethoven", "year": 1808, "meter": "2/4",
       "notes": "R:0.5 G4:0.5 G4:0.5 G4:0.5 | D#4:2 / R:0.5 F4:0.5 F4:0.5 F4:0.5 | D4:2 //" },
     { "id": "westminster", "title": "Westminster Quarters", "source": "Westminster chimes (after Handel)", "year": 1793, "meter": "4/4",

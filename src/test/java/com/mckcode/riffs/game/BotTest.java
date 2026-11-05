@@ -56,7 +56,10 @@ class BotTest {
 			games.submitRiff("dev:c", g.id, lib.randomFragment(random, len).notes(), null);
 			Game.Round r = g.current();
 			while (Game.Round.GUESSING.equals(r.phase))
-				games.guess(bot, g.id, BotPlayer.guess(r, random, level));
+			{
+				BotPlayer.BotGuess guess = BotPlayer.guess(r, random, level);
+				games.guess(bot, g.id, guess.notes(), guess.beats());
+			}
 			if (Game.Round.SOLVED.equals(r.phase) && r.wrong() < 6) solved++;    // within 6 guesses
 			wrong += r.wrong();
 			if (Game.ACTIVE.equals(g.status)) games.resign("dev:c", g.id);

@@ -151,8 +151,12 @@ public class GameService {
 		r.score = ev.score();
 		r.tier = ev.tier();
 		r.revealed = new ArrayList<>();
-		for (int i = 0; i < r.length; i++)
+		r.revealedBeats = new ArrayList<>();
+		List<Double> lengths = beatsOf(notes);
+		for (int i = 0; i < r.length; i++) {    // the first note is given: pitch and length
 			r.revealed.add(i == 0 ? RiffRules.pitches(notes).get(0) : null);
+			r.revealedBeats.add(i == 0 ? lengths.get(0) : null);
+		}
 		r.phase = Game.Round.GUESSING;
 		reward(g, me, r);
 		touch(g);
@@ -186,17 +190,40 @@ public class GameService {
 
 	// ---- guessing
 
-	public synchronized Game guess(String me, String gameId, List<Integer> notes) {
+	/** The lengths (beats) of a riff's sounding notes, in order. */
+	private static List<Double> beatsOf(List<com.mckcode.riffs.music.Note> notes) {
+		return notes.stream().filter(n -> !n.isRest()).map(com.mckcode.riffs.music.Note::b).toList();
+	}
+
+	/** Rounds saved before lengths counted have no revealedBeats: start it (the first note's length given). */
+	private static void ensureBeats(Game.Round r) {
+		if (r.revealedBeats != null && r.revealedBeats.size() == r.length) return;
+		r.revealedBeats = new ArrayList<>();
+		for (int i = 0; i < r.length; i++)
+			r.revealedBeats.add(i == 0 ? beatsOf(r.riff).get(0) : null);
+	}
+
+	/**
+	 * A guess: a pitch and a length for every note. A note is right only when both match. Each pitch is marked exact /
+	 * octave / close (with which way) / miss, and each length ok / wrong; right pitches and right lengths stay known.
+	 */
+	public synchronized Game guess(String me, String gameId, List<Integer> notes, List<Double> beats) {
 		Game g = active(gameId, me);
 		Game.Round r = listening(g, me);
 		if (notes == null || notes.size() != r.length) throw error(HttpStatus.BAD_REQUEST, "a guess needs " + r.length + " notes");
 		if (notes.stream().anyMatch(n -> n == null)) throw error(HttpStatus.BAD_REQUEST, "fill in every note");
+		if (beats == null || beats.size() != r.length || beats.stream().anyMatch(b -> b == null))
+			throw error(HttpStatus.BAD_REQUEST, "a guess needs a length for every note");
+		ensureBeats(r);
 
 		List<Integer> answer = RiffRules.pitches(r.riff);
+		List<Double> answerBeats = beatsOf(r.riff);
 		Game.Guess guess = new Game.Guess();
 		guess.notes = List.copyOf(notes);
+		guess.beats = List.copyOf(beats);
 		guess.marks = new ArrayList<>();
 		guess.hints = new ArrayList<>();
+		guess.lengths = new ArrayList<>();
 		guess.at = System.currentTimeMillis();
 		boolean all = true;
 		for (int i = 0; i < r.length; i++) {
@@ -204,8 +231,11 @@ public class GameService {
 			String mark = n == a ? "exact" : Math.floorMod(n - a, 12) == 0 ? "octave" : Math.abs(n - a) <= GameRules.CLOSE ? "close" : "miss";
 			guess.marks.add(mark);
 			guess.hints.add("close".equals(mark) ? (a > n ? "up" : "down") : null);
+			boolean lengthOk = Math.abs(beats.get(i) - answerBeats.get(i)) < 1e-6;
+			guess.lengths.add(lengthOk ? "ok" : "wrong");
 			if (n == a) r.revealed.set(i, a);
-			else all = false;
+			if (lengthOk) r.revealedBeats.set(i, answerBeats.get(i));
+			if (n != a || !lengthOk) all = false;
 		}
 		guess.correct = all;
 		r.guesses.add(guess);
@@ -215,11 +245,12 @@ public class GameService {
 		if (learner) r.learner = true;
 		// learner mode: every few wrong guesses, the next unknown note is given free
 		if (!all && learner && ls.strings > 0 && r.wrong() % GameRules.LEARNER_FREE_NOTE_EVERY == 0) {
-			int slot = r.revealed.indexOf(null);
+			int slot = firstUnknown(r);
 			if (slot >= 0) {
 				r.revealed.set(slot, answer.get(slot));
+				r.revealedBeats.set(slot, answerBeats.get(slot));
 				r.freeNotes++;
-				if (!r.revealed.contains(null)) all = true;    // that was the last one: nothing left to guess
+				if (firstUnknown(r) < 0) all = true;    // that was the last one: nothing left to guess
 			}
 		}
 
@@ -247,13 +278,22 @@ public class GameService {
 		Game.Round r = listening(g, me);
 		Game.PlayerState s = g.state.get(me);
 		if (s.hints <= 0) throw error(HttpStatus.CONFLICT, "no hints left");
-		int slot = r.revealed.indexOf(null);
+		ensureBeats(r);
+		int slot = firstUnknown(r);
 		if (slot < 0) throw error(HttpStatus.CONFLICT, "you already know every note");
 		r.revealed.set(slot, RiffRules.pitches(r.riff).get(slot));
+		r.revealedBeats.set(slot, beatsOf(r.riff).get(slot));
 		r.hintsUsed++;
 		s.hints--;
 		touch(g);
 		return g;
+	}
+
+	/** The first note whose pitch or length the listener doesn't know yet, or -1. */
+	private static int firstUnknown(Game.Round r) {
+		for (int i = 0; i < r.length; i++)
+			if (r.revealed.get(i) == null || r.revealedBeats.get(i) == null) return i;
+		return -1;
 	}
 
 	/** Spend an Extra String: put a snapped string back on your guitar (up to a full guitar). */
@@ -407,6 +447,8 @@ public class GameService {
 		m.put("length", r.length);
 		m.put("wrong", r.wrong());
 		m.put("revealed", r.revealed);
+		if (r.riff != null) ensureBeats(r);
+		m.put("revealedBeats", r.revealedBeats);
 		m.put("guesses", r.guesses);
 		m.put("hintsUsed", r.hintsUsed);
 		m.put("freeNotes", r.freeNotes);

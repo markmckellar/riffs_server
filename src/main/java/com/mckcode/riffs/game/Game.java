@@ -56,6 +56,8 @@ public class Game {
 		public String tier;
 		/** Per note: the pitch the listener knows (the first note, exact guesses and hints), else null. */
 		public List<Integer> revealed = new ArrayList<>();
+		/** Per note: the length (beats) the listener knows, else null. Guesses must match lengths too. */
+		public List<Double> revealedBeats = new ArrayList<>();
 		public List<Guess> guesses = new ArrayList<>();
 		public int hintsUsed;
 		/** Notes revealed free by learner mode, and whether the listener had learner mode on while guessing. */
@@ -84,6 +86,9 @@ public class Game {
 		public List<String> marks;
 		/** Per note: "up" or "down" when close (which way the real note is), else null. */
 		public List<String> hints;
+		/** The lengths guessed (beats), and per note "ok" or "wrong". */
+		public List<Double> beats;
+		public List<String> lengths;
 		public boolean correct;
 		public long at;
 	}

@@ -23,6 +23,9 @@ import com.mckcode.riffs.user.UserService;
 
 class GameServiceTest {
 
+	/** the lengths of both test riffs: six quarters and a half */
+	static final List<Double> BEATS = List.of(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0);
+
 	GameService games;
 	EventService events;
 	UserService users;
@@ -57,13 +60,13 @@ class GameServiceTest {
 		Map<String, Object> listenerRound = ((List<Map<String, Object>>) games.view(g, b).get("rounds")).get(0);
 		assertFalse(listenerRound.containsKey("score"));
 
-		games.guess(b, g.id, List.of(60, 60, 67, 66, 81, 69, 67));
+		games.guess(b, g.id, List.of(60, 60, 67, 66, 81, 69, 67), BEATS);
 		Game.Guess first = r.guesses.get(0);
 		assertEquals(List.of("exact", "exact", "exact", "close", "octave", "exact", "exact"), first.marks);
 		assertEquals("up", first.hints.get(3));
 		assertEquals(GameRules.STRINGS - 1, g.state.get(b).strings);    // a wrong guess snaps one of Bob's strings
 
-		games.guess(b, g.id, List.of(60, 60, 67, 67, 69, 69, 67));
+		games.guess(b, g.id, List.of(60, 60, 67, 67, 69, 69, 67), BEATS);
 		assertEquals(Game.Round.SOLVED, r.phase);
 		assertEquals(2, g.rounds.size());
 		assertEquals(b, g.current().composer);    // roles swap
@@ -77,11 +80,11 @@ class GameServiceTest {
 		users.setLearner(b, false);
 		Game g = games.start(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
-		games.guess(b, g.id, WRONG);
-		games.guess(b, g.id, WRONG);
-		games.guess(b, g.id, RIGHT);    // round 1: Bob snaps 2 strings, then gets it
+		games.guess(b, g.id, WRONG, BEATS);
+		games.guess(b, g.id, WRONG, BEATS);
+		games.guess(b, g.id, RIGHT, BEATS);    // round 1: Bob snaps 2 strings, then gets it
 		games.submitRiff(b, g.id, MusicSenseTest.notes(RIFF), null);
-		games.guess(a, g.id, RIGHT);    // round 2: Ann gets it first time
+		games.guess(a, g.id, RIGHT, BEATS);    // round 2: Ann gets it first time
 		assertEquals(3, g.current().number);
 		assertEquals(GameRules.STRINGS - 2, g.state.get(b).strings);    // Bob's strings didn't come back
 		assertEquals(GameRules.STRINGS, g.state.get(a).strings);
@@ -93,7 +96,7 @@ class GameServiceTest {
 		Game g = games.start(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
 		for (int i = 0; i < GameRules.STRINGS; i++)
-			games.guess(b, g.id, WRONG);
+			games.guess(b, g.id, WRONG, BEATS);
 		assertEquals(Game.FINISHED, g.status);
 		assertEquals(a, g.winner);
 		assertEquals(0, g.state.get(b).strings);
@@ -105,7 +108,7 @@ class GameServiceTest {
 		users.setLearner(b, false);
 		Game g = games.start(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
-		games.guess(b, g.id, WRONG);
+		games.guess(b, g.id, WRONG, BEATS);
 		g.state.get(b).extraStrings = 1;
 		games.extraString(b, g.id);
 		assertEquals(GameRules.STRINGS, g.state.get(b).strings);
@@ -137,12 +140,12 @@ class GameServiceTest {
 		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
 		Game.Round r = g.current();
 		List<Integer> wrong = List.of(60, 72, 72, 72, 72, 72, 72);
-		games.guess(b, g.id, wrong);
+		games.guess(b, g.id, wrong, BEATS);
 		assertEquals(0, r.freeNotes);
-		games.guess(b, g.id, wrong);
+		games.guess(b, g.id, wrong, BEATS);
 		assertEquals(1, r.freeNotes);
 		assertEquals(60, r.revealed.get(1));    // the next unknown note, given free
-		games.guess(b, g.id, List.of(60, 60, 67, 67, 69, 69, 67));
+		games.guess(b, g.id, List.of(60, 60, 67, 67, 69, 69, 67), BEATS);
 		assertEquals(Game.Round.SOLVED, r.phase);
 		assertEquals((GameRules.POINTS_GUESSED + GameRules.POINTS_PER_STRING_LEFT * 4) / 2, g.state.get(b).points);
 	}
@@ -153,8 +156,28 @@ class GameServiceTest {
 		Game g = games.start(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
 		for (int i = 0; i < 4; i++)
-			games.guess(b, g.id, List.of(60, 72, 72, 72, 72, 72, 72));
+			games.guess(b, g.id, List.of(60, 72, 72, 72, 72, 72, 72), BEATS);
 		assertEquals(0, g.current().freeNotes);
 		assertFalse(g.current().learner);
+	}
+
+	@Test
+	void lengthsCountTooAndTheFirstNoteIsGivenWhole() {
+		users.setLearner(b, false);
+		Game g = games.start(a, b);
+		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
+		Game.Round r = g.current();
+		assertEquals(1.0, r.revealedBeats.get(0));    // the first note's length is given too
+		List<Double> wrongLast = List.of(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+		games.guess(b, g.id, RIGHT, wrongLast);        // every pitch right, the last length wrong
+		Game.Guess first = r.guesses.get(0);
+		assertFalse(first.correct);
+		assertEquals("wrong", first.lengths.get(6));
+		assertEquals("ok", first.lengths.get(0));
+		assertNull(r.revealedBeats.get(6));
+		assertEquals(GameRules.STRINGS - 1, g.state.get(b).strings);
+		games.guess(b, g.id, RIGHT, BEATS);
+		assertEquals(Game.Round.SOLVED, r.phase);
+		assertThrows(ResponseStatusException.class, () -> games.guess(a, g.id, RIGHT, null));    // (a guess needs lengths)
 	}
 }

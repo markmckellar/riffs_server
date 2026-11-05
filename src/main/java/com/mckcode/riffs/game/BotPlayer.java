@@ -68,7 +68,8 @@ public class BotPlayer {
 			games.submitRiff(r.composer, g.id, f.notes(), f.tuneId());
 		}
 		else {
-			games.guess(r.listener, g.id, guess(r, random, level(r.listener)));
+			BotGuess b = guess(r, random, level(r.listener));
+			games.guess(r.listener, g.id, b.notes(), b.beats());
 		}
 	}
 
@@ -76,8 +77,15 @@ public class BotPlayer {
 		return Bots.find(botId).map(Bots.Bot::level).orElse(Bots.MEDIUM);
 	}
 
+	/** A bot's guess: a pitch and a length for every note. */
+	record BotGuess(List<Integer> notes, List<Double> beats) {
+	}
+
+	/** Lengths in the order a bot tries them: the most common in melodies first. */
+	private static final double[] LENGTH_ORDER = { 1, 0.5, 2, 1.5, 4, 3 };
+
 	/** A guess that fits every mark so far; how careful it is depends on the bot's level. */
-	static List<Integer> guess(Game.Round r, Random random, Bots.Level level) {
+	static BotGuess guess(Game.Round r, Random random, Bots.Level level) {
 		List<Integer> out = new ArrayList<>();
 		List<Game.Guess> remembered = level.memory() <= 0 || r.guesses.size() <= level.memory() ? r.guesses
 				: r.guesses.subList(r.guesses.size() - level.memory(), r.guesses.size());
@@ -101,6 +109,29 @@ public class BotPlayer {
 			cands.sort((a, b) -> Integer.compare(Math.abs(a - prev), Math.abs(b - prev)));
 			int pick = random.nextInt(Math.min(level.choices(), cands.size()));
 			out.add(cands.get(pick));
+		}
+		return new BotGuess(out, guessLengths(r, random, level, remembered));
+	}
+
+	/** For each note: its known length, else one not yet marked wrong (common lengths first, sloppier at lower levels). */
+	private static List<Double> guessLengths(Game.Round r, Random random, Bots.Level level, List<Game.Guess> remembered) {
+		List<Double> out = new ArrayList<>();
+		for (int i = 0; i < r.length; i++) {
+			Double known = r.revealedBeats != null && i < r.revealedBeats.size() ? r.revealedBeats.get(i) : null;
+			if (known != null) {
+				out.add(known);
+				continue;
+			}
+			List<Double> cands = new ArrayList<>();
+			for (double l : LENGTH_ORDER) {
+				boolean ruledOut = false;
+				for (Game.Guess g : remembered)
+					if (g.lengths != null && "wrong".equals(g.lengths.get(i)) && Math.abs(g.beats.get(i) - l) < 1e-6) ruledOut = true;
+				if (!ruledOut) cands.add(l);
+			}
+			if (cands.isEmpty()) cands.add(1.0);
+			if (random.nextDouble() < level.wildness()) out.add(cands.get(random.nextInt(cands.size())));
+			else out.add(cands.get(random.nextInt(Math.min(level.choices(), cands.size()))));
 		}
 		return out;
 	}
