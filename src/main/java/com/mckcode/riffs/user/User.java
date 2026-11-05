@@ -10,6 +10,8 @@ public class User {
 	public int wins;
 	public int losses;
 	public int points;
+	/** Learner mode: ear-training helpers when guessing (research/ear_training.md). On for new players. */
+	public boolean learner;
 
 	public User() {
 	}
@@ -19,6 +21,7 @@ public class User {
 		this.name = name;
 		this.email = email;
 		this.bot = bot;
+		this.learner = !bot;
 		this.createdAt = System.currentTimeMillis();
 	}
 }

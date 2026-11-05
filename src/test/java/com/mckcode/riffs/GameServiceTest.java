@@ -25,12 +25,13 @@ class GameServiceTest {
 
 	GameService games;
 	EventService events;
+	UserService users;
 	final String a = "dev:ann", b = "dev:bob";
 
 	@BeforeEach
 	void setUp() throws Exception {
 		String dir = Files.createTempDirectory("riffs").toString();
-		UserService users = new UserService(dir);
+		users = new UserService(dir);
 		users.signedIn(a, "Ann", null);
 		users.signedIn(b, "Bob", null);
 		events = new EventService();
@@ -100,5 +101,32 @@ class GameServiceTest {
 		Game g2 = games.start(b, "bot:robo_riff");
 		games.submitRiff(b, g2.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
 		assertEquals(1, g2.state.get(b).extraStrings);
+	}
+
+	@Test
+	void learnersGetAFreeNoteEveryTwoMissesAndHalfPoints() {
+		Game g = games.start(a, b);    // new players start in learner mode
+		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
+		Game.Round r = g.current();
+		List<Integer> wrong = List.of(60, 72, 72, 72, 72, 72, 72);
+		games.guess(b, g.id, wrong);
+		assertEquals(0, r.freeNotes);
+		games.guess(b, g.id, wrong);
+		assertEquals(1, r.freeNotes);
+		assertEquals(60, r.revealed.get(1));    // the next unknown note, given free
+		games.guess(b, g.id, List.of(60, 60, 67, 67, 69, 69, 67));
+		assertEquals(Game.Round.SOLVED, r.phase);
+		assertEquals((GameRules.POINTS_GUESSED + GameRules.POINTS_PER_STRING_LEFT * 4) / 2, g.state.get(b).points);
+	}
+
+	@Test
+	void noFreeNotesWithLearnerModeOff() {
+		users.setLearner(b, false);
+		Game g = games.start(a, b);
+		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
+		for (int i = 0; i < 4; i++)
+			games.guess(b, g.id, List.of(60, 72, 72, 72, 72, 72, 72));
+		assertEquals(0, g.current().freeNotes);
+		assertFalse(g.current().learner);
 	}
 }

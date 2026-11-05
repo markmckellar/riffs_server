@@ -206,6 +206,17 @@ public class GameService {
 		}
 		guess.correct = all;
 		r.guesses.add(guess);
+		boolean learner = users.get(me).map(u -> u.learner).orElse(false);
+		if (learner) r.learner = true;
+		// learner mode: every few wrong guesses, the next unknown note is given free
+		if (!all && learner && r.stringsLeft() > 0 && r.wrong() % GameRules.LEARNER_FREE_NOTE_EVERY == 0) {
+			int slot = r.revealed.indexOf(null);
+			if (slot >= 0) {
+				r.revealed.set(slot, answer.get(slot));
+				r.freeNotes++;
+				if (!r.revealed.contains(null)) all = true;    // that was the last one: nothing left to guess
+			}
+		}
 
 		String who = name(me);
 		if (all) {
@@ -264,7 +275,10 @@ public class GameService {
 		r.phase = solved ? Game.Round.SOLVED : Game.Round.FAILED;
 		r.endedAt = System.currentTimeMillis();
 		Game.PlayerState ls = g.state.get(r.listener);
-		if (solved) ls.points += GameRules.POINTS_GUESSED + GameRules.POINTS_PER_STRING_LEFT * r.stringsLeft();
+		if (solved) {
+			int pts = GameRules.POINTS_GUESSED + GameRules.POINTS_PER_STRING_LEFT * r.stringsLeft();
+			ls.points += r.learner ? pts / 2 : pts;    // learner mode: half points
+		}
 		else ls.encores--;
 		if (ls.encores <= 0) {
 			finish(g, r.composer);
@@ -368,6 +382,7 @@ public class GameService {
 		m.put("name", u == null ? id : u.name);
 		m.put("bot", u != null && u.bot);
 		Bots.find(id).ifPresent(b -> m.put("level", b.level().name()));
+		m.put("learner", u != null && u.learner);
 		m.put("online", u != null && (u.bot || users.isOnline(id)));
 		m.put("encores", s.encores);
 		m.put("points", s.points);
@@ -390,6 +405,8 @@ public class GameService {
 		m.put("revealed", r.revealed);
 		m.put("guesses", r.guesses);
 		m.put("hintsUsed", r.hintsUsed);
+		m.put("freeNotes", r.freeNotes);
+		m.put("learner", r.learner);
 		m.put("fromLibrary", r.tuneId != null);
 		if (r.riff != null) m.put("riff", r.riff);
 		if (composer || r.over()) {

@@ -74,6 +74,14 @@ public class UserService {
 		return l;
 	}
 
+	public synchronized User setLearner(String id, boolean learner) {
+		User u = users.get(id);
+		if (u == null) throw new IllegalArgumentException("no such player");
+		u.learner = learner;
+		save();
+		return u;
+	}
+
 	public synchronized void update(User u) {
 		users.put(u.id, u);
 		save();

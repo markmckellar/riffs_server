@@ -58,6 +58,9 @@ public class Game {
 		public List<Integer> revealed = new ArrayList<>();
 		public List<Guess> guesses = new ArrayList<>();
 		public int hintsUsed;
+		/** Notes revealed free by learner mode, and whether the listener had learner mode on while guessing. */
+		public int freeNotes;
+		public boolean learner;
 		public long startedAt;
 		public long endedAt;
 

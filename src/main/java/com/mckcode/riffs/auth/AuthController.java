@@ -109,6 +109,15 @@ public class AuthController {
 		return Map.of("signedOut", true);
 	}
 
+	/** The player's own settings; for now just learner mode. */
+	@PostMapping("/api/me/settings")
+	public Map<String, Object> settings(@org.springframework.web.bind.annotation.RequestAttribute(AuthFilter.USER_ID) String me,
+			@RequestBody Map<String, Object> body) {
+		Object learner = body == null ? null : body.get("learner");
+		if (!(learner instanceof Boolean b)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "learner must be true or false");
+		return me(users.setLearner(me, b));
+	}
+
 	static Map<String, Object> me(User u) {
 		Map<String, Object> m = new LinkedHashMap<>();
 		m.put("id", u.id);
@@ -117,6 +126,7 @@ public class AuthController {
 		m.put("wins", u.wins);
 		m.put("losses", u.losses);
 		m.put("points", u.points);
+		m.put("learner", u.learner);
 		return m;
 	}
 }
