@@ -53,4 +53,11 @@ class GuestLoginTest {
 		assertEquals("public, max-age=31536000, immutable",
 				http.getForEntity("/assets/anything.js", String.class).getHeaders().getCacheControl());
 	}
+
+	@Test
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	void signedInPlayersCarryTheirAttributes() {
+		ResponseEntity<Map> me = http.postForEntity("/api/auth/guest", Map.of("name", "Tester"), Map.class);
+		assertEquals(java.util.List.of(), me.getBody().get("attributes"));    // a new player has none
+	}
 }

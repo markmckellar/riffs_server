@@ -12,6 +12,17 @@ public class User {
 	public int points;
 	/** Learner mode: ear-training helpers when guessing (research/ear_training.md). On for new players. */
 	public boolean learner;
+	/**
+	 * Tags for this player, set on the server only (edit users.json, or add an admin tool later), e.g. "developer"
+	 * (sees the hidden riff faintly when guessing, for testing). See {@link #DEVELOPER}.
+	 */
+	public java.util.List<String> attributes = new java.util.ArrayList<>();
+
+	public static final String DEVELOPER = "developer";
+
+	public boolean has(String attribute) {
+		return attributes != null && attributes.contains(attribute);
+	}
 
 	public User() {
 	}

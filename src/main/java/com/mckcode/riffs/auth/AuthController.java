@@ -127,6 +127,7 @@ public class AuthController {
 		m.put("losses", u.losses);
 		m.put("points", u.points);
 		m.put("learner", u.learner);
+		m.put("attributes", u.attributes == null ? java.util.List.of() : u.attributes);
 		return m;
 	}
 }
