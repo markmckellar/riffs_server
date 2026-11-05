@@ -55,6 +55,7 @@ public class AuthController {
 		m.put("game", gameName);
 		m.put("googleClientId", config.googleClientId());
 		m.put("devLogin", config.devLogin());
+		m.put("guestLogin", config.guestLogin());
 		Optional<User> me = sessions.read(request).flatMap(users::get);
 		m.put("me", me.map(AuthController::me).orElse(null));
 		return m;
@@ -81,6 +82,26 @@ public class AuthController {
 		sessions.set(req, res, sessions.create(u.id), false);
 		return me(u);
 	}
+
+	/**
+	 * Guest sign-in: the name is only what others see. Every guest gets a new random account, so typing someone
+	 * else's name doesn't make you them (unlike the test sign-in). The cookie keeps this phone signed in.
+	 */
+	@PostMapping("/api/auth/guest")
+	public Map<String, Object> guest(@RequestBody Map<String, String> body, HttpServletRequest req, HttpServletResponse res) {
+		if (!config.guestLogin()) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "guest sign-in is off on this server");
+		String name = body == null || body.get("name") == null ? "" : body.get("name").trim();
+		if (name.isEmpty() || name.length() > 30) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "type a name (up to 30 letters)");
+		byte[] r = new byte[9];
+		RANDOM.nextBytes(r);
+		String id = "guest:" + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(r);
+		User u = users.signedIn(id, name, null);
+		sessions.set(req, res, sessions.create(u.id), false);
+		Log.info("guest signed in: {} ({})", u.name, u.id);
+		return me(u);
+	}
+
+	private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
 
 	@PostMapping("/api/auth/logout")
 	public Map<String, Object> logout(HttpServletRequest req, HttpServletResponse res) {
