@@ -141,6 +141,7 @@ public class TuneLibrary {
 	}
 
 	private static void add(List<Fragment> out, String id, String title, int start, List<Note> notes, boolean phraseEnd) {
+		notes = RiffRules.evenly(notes);    // riffs have no rhythm: every note one beat
 		if (RiffRules.problem(notes) != null) return;
 		out.add(new Fragment(id, title, start, List.copyOf(notes), MusicSense.evaluate(notes).score(), phraseEnd));
 	}

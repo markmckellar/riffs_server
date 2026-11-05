@@ -82,7 +82,7 @@ public class BotPlayer {
 	}
 
 	/** Lengths in the order a bot tries them: the most common in melodies first. */
-	private static final double[] LENGTH_ORDER = { 1, 0.5, 2, 1.5, 4, 3 };
+	private static final double[] LENGTH_ORDER = RiffRules.LENGTHS;
 
 	/** A guess that fits every mark so far; how careful it is depends on the bot's level. */
 	static BotGuess guess(Game.Round r, Random random, Bots.Level level) {

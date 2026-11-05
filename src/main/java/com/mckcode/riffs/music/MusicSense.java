@@ -138,14 +138,19 @@ public final class MusicSense {
 		reasons.add(new Reason("repetition", repPts, repPts == 8 ? "A little pattern repeats, which makes it catchy."
 				: repPts == 4 ? "A shape comes back." : "No repeated pattern."));
 
-		// 8. rhythm fits whole bars
-		boolean bars = wholeMultiple(totalBeats, 4) || wholeMultiple(totalBeats, 3) || wholeMultiple(totalBeats, 2);
-		reasons.add(new Reason("bars", bars ? 6 : 0, bars ? "The rhythm fills whole bars." : "The rhythm doesn't fill whole bars."));
+		// 8 and 9 are about rhythm; when every note is the same length (the game's riffs now) they mean nothing, so
+		// they're left out and the other rules are scaled up to the full 0-100
+		boolean rhythm = len.stream().map(d -> Math.round(d * 100)).distinct().count() > 1;
+		if (rhythm) {
+			// 8. rhythm fits whole bars
+			boolean bars = wholeMultiple(totalBeats, 4) || wholeMultiple(totalBeats, 3) || wholeMultiple(totalBeats, 2);
+			reasons.add(new Reason("bars", bars ? 6 : 0, bars ? "The rhythm fills whole bars." : "The rhythm doesn't fill whole bars."));
 
-		// 9. strong ending
-		double mean = len.stream().mapToDouble(Double::doubleValue).average().orElse(1);
-		boolean strong = len.get(len.size() - 1) >= mean - 1e-9;
-		reasons.add(new Reason("ending", strong ? 6 : 0, strong ? "Ends on a long note." : "Ends on a short note."));
+			// 9. strong ending
+			double mean = len.stream().mapToDouble(Double::doubleValue).average().orElse(1);
+			boolean strong = len.get(len.size() - 1) >= mean - 1e-9;
+			reasons.add(new Reason("ending", strong ? 6 : 0, strong ? "Ends on a long note." : "Ends on a short note."));
+		}
 
 		// penalties
 		int tritones = (int) iv.stream().filter(i -> Math.abs(i) == 6).count();
@@ -169,7 +174,9 @@ public final class MusicSense {
 		}
 		if (worstSame >= 4 && span > 0) reasons.add(new Reason("samenote", -5, "The same note " + worstSame + " times in a row."));
 
-		int score = Math.max(0, Math.min(100, reasons.stream().mapToInt(Reason::points).sum()));
+		int sum = reasons.stream().mapToInt(Reason::points).sum();
+		if (!rhythm) sum = (int) Math.round(sum * 100.0 / 88);    // 12 rhythm points left out of 100
+		int score = Math.max(0, Math.min(100, sum));
 		if (span == 0) score = Math.min(score, 15);
 		return new Evaluation(score, tier(score), key, reasons);
 	}

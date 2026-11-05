@@ -1,5 +1,6 @@
 package com.mckcode.riffs;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -162,22 +163,16 @@ class GameServiceTest {
 	}
 
 	@Test
-	void lengthsCountTooAndTheFirstNoteIsGivenWhole() {
+	void notesAreOneBeatAndOnlyPitchesCount() {
 		users.setLearner(b, false);
 		Game g = games.start(a, b);
-		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
+		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);    // RIFF ends with a half note
 		Game.Round r = g.current();
-		assertEquals(1.0, r.revealedBeats.get(0));    // the first note's length is given too
-		List<Double> wrongLast = List.of(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
-		games.guess(b, g.id, RIGHT, wrongLast);        // every pitch right, the last length wrong
-		Game.Guess first = r.guesses.get(0);
-		assertFalse(first.correct);
-		assertEquals("wrong", first.lengths.get(6));
-		assertEquals("ok", first.lengths.get(0));
-		assertNull(r.revealedBeats.get(6));
-		assertEquals(GameRules.STRINGS - 1, g.state.get(b).strings);
-		games.guess(b, g.id, RIGHT, BEATS);
+		assertTrue(r.riff.stream().allMatch(n -> n.b() == 1.0));        // evened out: every note one beat
+		games.guess(b, g.id, RIGHT, List.of(4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0));    // lengths sent are ignored
 		assertEquals(Game.Round.SOLVED, r.phase);
-		assertThrows(ResponseStatusException.class, () -> games.guess(a, g.id, RIGHT, null));    // (a guess needs lengths)
+		Game g2 = games.start(b, "bot:robo_riff");
+		games.submitRiff(b, g2.id, MusicSenseTest.notes(RIFF), null);
+		assertDoesNotThrow(() -> games.guess("bot:robo_riff", g2.id, WRONG, null));    // no lengths needed
 	}
 }

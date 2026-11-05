@@ -141,6 +141,7 @@ public class GameService {
 		Game g = active(gameId, me);
 		Game.Round r = g.current();
 		if (!me.equals(r.composer) || !Game.Round.COMPOSING.equals(r.phase)) throw error(HttpStatus.CONFLICT, "it isn't your turn to compose");
+		notes = RiffRules.evenly(notes);    // no rhythm: every note one beat
 		String problem = RiffRules.problem(notes);
 		if (problem != null) throw error(HttpStatus.BAD_REQUEST, problem);
 
@@ -190,9 +191,9 @@ public class GameService {
 
 	// ---- guessing
 
-	/** The lengths (beats) of a riff's sounding notes, in order. */
+	/** The lengths of a riff's sounding notes: one beat each (also for riffs saved when lengths still varied). */
 	private static List<Double> beatsOf(List<com.mckcode.riffs.music.Note> notes) {
-		return notes.stream().filter(n -> !n.isRest()).map(com.mckcode.riffs.music.Note::b).toList();
+		return notes.stream().filter(n -> !n.isRest()).map(n -> RiffRules.BEAT).toList();
 	}
 
 	/** Rounds saved before lengths counted have no revealedBeats: start it (the first note's length given). */
@@ -212,8 +213,10 @@ public class GameService {
 		Game.Round r = listening(g, me);
 		if (notes == null || notes.size() != r.length) throw error(HttpStatus.BAD_REQUEST, "a guess needs " + r.length + " notes");
 		if (notes.stream().anyMatch(n -> n == null)) throw error(HttpStatus.BAD_REQUEST, "fill in every note");
+		// no rhythm any more: lengths are optional and every note counts as one beat
 		if (beats == null || beats.size() != r.length || beats.stream().anyMatch(b -> b == null))
-			throw error(HttpStatus.BAD_REQUEST, "a guess needs a length for every note");
+			beats = java.util.Collections.nCopies(r.length, RiffRules.BEAT);
+		else beats = beats.stream().map(b -> RiffRules.BEAT).toList();
 		ensureBeats(r);
 
 		List<Integer> answer = RiffRules.pitches(r.riff);

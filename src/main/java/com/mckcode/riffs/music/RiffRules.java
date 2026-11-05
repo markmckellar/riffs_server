@@ -12,10 +12,11 @@ public final class RiffRules {
 	public static final int LOWEST = 55;
 	public static final int HIGHEST = 84;
 	/**
-	 * Allowed note lengths in beats: the keys players have, eighth ⅛, quarter ¼, dotted quarter ⅜, half ½, dotted
-	 * half ¾, whole 1. Guesses must match lengths too, so riffs may only use lengths a player can enter.
+	 * Every note (and rest) is one beat: riffs are a plain sequence of notes, no rhythm (Mark: "only use full notes").
+	 * Riffs that arrive with other lengths are evened out by {@link #evenly}.
 	 */
-	public static final double[] LENGTHS = { 0.5, 1, 1.5, 2, 3, 4 };
+	public static final double BEAT = 1;
+	public static final double[] LENGTHS = { BEAT };
 
 	private RiffRules() {
 	}
@@ -37,6 +38,11 @@ public final class RiffRules {
 			if (!ok) return "note length " + n.b() + " beats isn't allowed";
 		}
 		return null;
+	}
+
+	/** The same notes and rests, each one beat long. */
+	public static List<Note> evenly(List<Note> notes) {
+		return notes == null ? null : notes.stream().map(n -> new Note(n.m(), BEAT)).toList();
 	}
 
 	public static List<Integer> pitches(List<Note> notes) {
