@@ -61,7 +61,7 @@ class GameServiceTest {
 		Game.Guess first = r.guesses.get(0);
 		assertEquals(List.of("exact", "exact", "exact", "close", "octave", "exact", "exact"), first.marks);
 		assertEquals("up", first.hints.get(3));
-		assertEquals(GameRules.STRINGS - 1, r.stringsLeft());
+		assertEquals(GameRules.STRINGS - 1, g.state.get(b).strings);    // a wrong guess snaps one of Bob's strings
 
 		games.guess(b, g.id, List.of(60, 60, 67, 67, 69, 69, 67));
 		assertEquals(Game.Round.SOLVED, r.phase);
@@ -69,20 +69,48 @@ class GameServiceTest {
 		assertEquals(b, g.current().composer);    // roles swap
 	}
 
+	static final List<Integer> WRONG = List.of(64, 72, 72, 72, 72, 72, 72), RIGHT = List.of(64, 62, 60, 62, 64, 64, 64);
+	static final String RIFF = "E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:2";
+
 	@Test
-	void runningOutOfStringsCostsAnEncoreAndThreeEndTheGame() {
+	void stringsLastTheWholeGame() {
+		users.setLearner(b, false);
 		Game g = games.start(a, b);
-		for (int round = 0; round < 6 && Game.ACTIVE.equals(g.status); round++) {
-			Game.Round r = g.current();
-			games.submitRiff(r.composer, g.id, MusicSenseTest.notes("E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:2"), null);
-			if (r.listener.equals(b)) // Bob always fails, Ann always gets it first time
-				for (int i = 0; i < GameRules.STRINGS; i++)
-					games.guess(b, g.id, List.of(64, 72, 72, 72, 72, 72, 72));
-			else games.guess(a, g.id, List.of(64, 62, 60, 62, 64, 64, 64));
-		}
+		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
+		games.guess(b, g.id, WRONG);
+		games.guess(b, g.id, WRONG);
+		games.guess(b, g.id, RIGHT);    // round 1: Bob snaps 2 strings, then gets it
+		games.submitRiff(b, g.id, MusicSenseTest.notes(RIFF), null);
+		games.guess(a, g.id, RIGHT);    // round 2: Ann gets it first time
+		assertEquals(3, g.current().number);
+		assertEquals(GameRules.STRINGS - 2, g.state.get(b).strings);    // Bob's strings didn't come back
+		assertEquals(GameRules.STRINGS, g.state.get(a).strings);
+	}
+
+	@Test
+	void theLastStringSnappingEndsTheGame() {
+		users.setLearner(b, false);
+		Game g = games.start(a, b);
+		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
+		for (int i = 0; i < GameRules.STRINGS; i++)
+			games.guess(b, g.id, WRONG);
 		assertEquals(Game.FINISHED, g.status);
 		assertEquals(a, g.winner);
-		assertEquals(0, g.state.get(b).encores);
+		assertEquals(0, g.state.get(b).strings);
+		assertEquals(Game.Round.FAILED, g.rounds.get(0).phase);
+	}
+
+	@Test
+	void anExtraStringPutsOneBack() {
+		users.setLearner(b, false);
+		Game g = games.start(a, b);
+		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
+		games.guess(b, g.id, WRONG);
+		g.state.get(b).extraStrings = 1;
+		games.extraString(b, g.id);
+		assertEquals(GameRules.STRINGS, g.state.get(b).strings);
+		g.state.get(b).extraStrings = 1;
+		assertThrows(ResponseStatusException.class, () -> games.extraString(b, g.id));    // already full
 	}
 
 	@Test

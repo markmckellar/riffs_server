@@ -32,7 +32,8 @@ public class Game {
 	}
 
 	public static class PlayerState {
-		public int encores = GameRules.START_ENCORES;
+		/** Strings left on this player's guitar (for the whole game). Starts full, also for games saved before this. */
+		public int strings = GameRules.STRINGS;
 		public int points;
 		public int hints;
 		public int extraStrings;
@@ -53,7 +54,6 @@ public class Game {
 		public String tuneId;
 		public int score;
 		public String tier;
-		public int strings = GameRules.STRINGS;
 		/** Per note: the pitch the listener knows (the first note, exact guesses and hints), else null. */
 		public List<Integer> revealed = new ArrayList<>();
 		public List<Guess> guesses = new ArrayList<>();
@@ -68,8 +68,9 @@ public class Game {
 			return (int) guesses.stream().filter(g -> !g.correct).count();
 		}
 
-		public int stringsLeft() {
-			return strings - wrong();
+		/** Guesses saved against FAST_GUESSES, for the solving bonus. */
+		public int fastBonus() {
+			return Math.max(0, GameRules.FAST_GUESSES - wrong());
 		}
 
 		public boolean over() {

@@ -49,7 +49,7 @@ class BotTest {
 		GameService games = new GameService(dir, users, new EventService());
 		Random random = new Random(42);
 		String bot = Bots.ALL.stream().filter(b -> b.level() == level).findFirst().get().id();
-		int solved = 0, rounds = 400;
+		int solved = 0, rounds = 400, wrong = 0;
 		for (int i = 0; i < rounds; i++) {
 			Game g = games.start("dev:c", bot);
 			int len = level.minNotes() + random.nextInt(level.maxNotes() - level.minNotes() + 1);
@@ -57,9 +57,11 @@ class BotTest {
 			Game.Round r = g.current();
 			while (Game.Round.GUESSING.equals(r.phase))
 				games.guess(bot, g.id, BotPlayer.guess(r, random, level));
-			if (Game.Round.SOLVED.equals(r.phase)) solved++;
-			games.resign("dev:c", g.id);
+			if (Game.Round.SOLVED.equals(r.phase) && r.wrong() < 6) solved++;    // within 6 guesses
+			wrong += r.wrong();
+			if (Game.ACTIVE.equals(g.status)) games.resign("dev:c", g.id);
 		}
+		System.out.printf("  %s: %.1f strings snapped per riff on average%n", level.name(), wrong / (double) rounds);
 		return solved / (double) rounds;
 	}
 }

@@ -131,7 +131,7 @@ public class GameController {
 	public Map<String, Object> rules() {
 		return Map.of("minNotes", RiffRules.MIN_NOTES, "maxNotes", RiffRules.MAX_NOTES, "maxRests", RiffRules.MAX_RESTS,
 				"lowest", RiffRules.LOWEST, "highest", RiffRules.HIGHEST, "lengths", RiffRules.LENGTHS,
-				"strings", GameRules.STRINGS, "encores", GameRules.START_ENCORES);
+				"strings", GameRules.STRINGS);
 	}
 
 	@GetMapping("/api/library")

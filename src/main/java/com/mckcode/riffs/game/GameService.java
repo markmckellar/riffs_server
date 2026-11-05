@@ -177,7 +177,6 @@ public class GameService {
 		if (gold) {
 			s.extraStrings++;
 			s.golds++;
-			if (s.golds % GameRules.GOLDS_PER_ENCORE == 0 && s.encores < GameRules.MAX_ENCORES) s.encores++;
 		}
 	}
 
@@ -206,10 +205,12 @@ public class GameService {
 		}
 		guess.correct = all;
 		r.guesses.add(guess);
+		Game.PlayerState ls = g.state.get(me);
+		if (!all) ls.strings--;    // a wrong guess snaps a string of the listener's guitar, for good
 		boolean learner = users.get(me).map(u -> u.learner).orElse(false);
 		if (learner) r.learner = true;
 		// learner mode: every few wrong guesses, the next unknown note is given free
-		if (!all && learner && r.stringsLeft() > 0 && r.wrong() % GameRules.LEARNER_FREE_NOTE_EVERY == 0) {
+		if (!all && learner && ls.strings > 0 && r.wrong() % GameRules.LEARNER_FREE_NOTE_EVERY == 0) {
 			int slot = r.revealed.indexOf(null);
 			if (slot >= 0) {
 				r.revealed.set(slot, answer.get(slot));
@@ -223,14 +224,14 @@ public class GameService {
 			events.publish(r.composer, "guess_made", g.id, who + " guessed your riff!");
 			endRound(g, r, true);
 		}
-		else if (r.stringsLeft() <= 0) {
-			events.publish(r.composer, "guess_made", g.id, who + " ran out of strings. Your riff stumped them!");
+		else if (ls.strings <= 0) {
+			events.publish(r.composer, "guess_made", g.id, who + " snapped their last string on your riff!");
 			endRound(g, r, false);
 		}
 		else {
 			long exact = guess.marks.stream().filter("exact"::equals).count();
 			events.publish(r.composer, "guess_made", g.id, who + " guessed " + exact + " of " + r.length + " notes ("
-					+ r.stringsLeft() + " strings left).");
+					+ ls.strings + " strings left).");
 		}
 		touch(g);
 		return g;
@@ -251,13 +252,14 @@ public class GameService {
 		return g;
 	}
 
-	/** Spend an Extra String: one more wrong guess allowed this round. */
+	/** Spend an Extra String: put a snapped string back on your guitar (up to a full guitar). */
 	public synchronized Game extraString(String me, String gameId) {
 		Game g = active(gameId, me);
-		Game.Round r = listening(g, me);
+		listening(g, me);
 		Game.PlayerState s = g.state.get(me);
 		if (s.extraStrings <= 0) throw error(HttpStatus.CONFLICT, "no extra strings left");
-		r.strings++;
+		if (s.strings >= GameRules.STRINGS) throw error(HttpStatus.CONFLICT, "your guitar has all its strings");
+		s.strings++;
 		s.extraStrings--;
 		touch(g);
 		return g;
@@ -276,15 +278,14 @@ public class GameService {
 		r.endedAt = System.currentTimeMillis();
 		Game.PlayerState ls = g.state.get(r.listener);
 		if (solved) {
-			int pts = GameRules.POINTS_GUESSED + GameRules.POINTS_PER_STRING_LEFT * r.stringsLeft();
+			int pts = GameRules.POINTS_GUESSED + GameRules.POINTS_PER_STRING_LEFT * r.fastBonus();
 			ls.points += r.learner ? pts / 2 : pts;    // learner mode: half points
 		}
-		else ls.encores--;
-		if (ls.encores <= 0) {
+		if (ls.strings <= 0) {    // the last string snapped: game over
 			finish(g, r.composer);
 			return;
 		}
-		String text = solved ? "Round " + r.number + ": " + name(r.listener) + " got it." : "Round " + r.number + ": " + name(r.listener) + " lost an Encore.";
+		String text = "Round " + r.number + ": " + name(r.listener) + " got it.";
 		events.publish(r.composer, "round_over", g.id, text + " Your turn to guess.");
 		events.publish(r.listener, "round_over", g.id, text + " Your turn to compose.");
 		newRound(g, r.listener);    // roles swap
@@ -384,7 +385,7 @@ public class GameService {
 		Bots.find(id).ifPresent(b -> m.put("level", b.level().name()));
 		m.put("learner", u != null && u.learner);
 		m.put("online", u != null && (u.bot || users.isOnline(id)));
-		m.put("encores", s.encores);
+		m.put("strings", s.strings);
 		m.put("points", s.points);
 		m.put("hints", s.hints);
 		m.put("extraStrings", s.extraStrings);
@@ -400,8 +401,7 @@ public class GameService {
 		m.put("role", composer ? "composer" : "listener");
 		m.put("phase", r.phase);
 		m.put("length", r.length);
-		m.put("strings", r.strings);
-		m.put("stringsLeft", r.stringsLeft());
+		m.put("wrong", r.wrong());
 		m.put("revealed", r.revealed);
 		m.put("guesses", r.guesses);
 		m.put("hintsUsed", r.hintsUsed);
