@@ -4,10 +4,10 @@ package com.mckcode.riffs.game;
 public final class GameRules {
 
 	/**
-	 * Each player's guitar for the whole game (a 12-string guitar): every wrong guess snaps a string, strings don't
-	 * come back between riffs, and the player whose last string snaps loses. About as long as the old 3 lives × 6.
+	 * Each player's guitar for the whole game (6 strings, Mark's choice): every wrong guess snaps a string, strings
+	 * don't come back between riffs, and the player whose last string snaps loses.
 	 */
-	public static final int STRINGS = 12;
+	public static final int STRINGS = 6;
 	/** Points for solving a riff: POINTS_GUESSED + POINTS_PER_STRING_LEFT for each of the first FAST_GUESSES not needed. */
 	public static final int FAST_GUESSES = 6;
 	/** A guessed note within this many semitones is "close". */

@@ -44,6 +44,10 @@ public class GameService {
 		}, new LinkedHashMap<>()));
 		this.users = users;
 		this.events = events;
+		// games saved when guitars had more strings: cap them at today's number
+		for (Game g : games.values())
+			for (Game.PlayerState s : g.state.values())
+				s.strings = Math.min(s.strings, GameRules.STRINGS);
 	}
 
 	// ---- reading
