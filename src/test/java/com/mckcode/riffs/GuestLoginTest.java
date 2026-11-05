@@ -46,4 +46,11 @@ class GuestLoginTest {
 		assertEquals(403, http.postForEntity("/api/auth/dev", Map.of("name", "Mark"), Map.class).getStatusCodeValue());
 		assertEquals(401, http.getForEntity("/api/games", String.class).getStatusCodeValue());
 	}
+
+	@Test
+	void thePageIsAlwaysCheckedAndBuiltFilesAreKept() {
+		assertEquals("no-cache", http.getForEntity("/", String.class).getHeaders().getCacheControl());
+		assertEquals("public, max-age=31536000, immutable",
+				http.getForEntity("/assets/anything.js", String.class).getHeaders().getCacheControl());
+	}
 }
