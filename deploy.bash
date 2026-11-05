@@ -12,7 +12,8 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 CLIENT=$HERE/../riffs_client_vue
 REMOTE_DIR=riffs_server    # in mm's home on the server
 
-[ -n "${SSH_AUTH_SOCK:-}" ] || export SSH_AUTH_SOCK=$(ls ~/.ssh/agent/s.* 2>/dev/null | head -1)
+# use the SSH agent; if the one in this shell is missing or stale, fall back to the running one in ~/.ssh/agent
+if ! ssh-add -l >/dev/null 2>&1; then export SSH_AUTH_SOCK=$(ls ~/.ssh/agent/s.* 2>/dev/null | head -1); fi
 
 echo "== web client"
 (cd "$CLIENT" && source ~/.nvm/nvm.sh >/dev/null && nvm use >/dev/null && npm run build >/dev/null)
