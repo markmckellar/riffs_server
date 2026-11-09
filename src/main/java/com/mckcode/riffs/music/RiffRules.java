@@ -8,9 +8,9 @@ public final class RiffRules {
 	public static final int MIN_NOTES = 4;
 	public static final int MAX_NOTES = 8;
 	public static final int MAX_RESTS = 2;
-	/** Lowest and highest pitches the staff offers: G3 to C6. */
-	public static final int LOWEST = 55;
-	public static final int HIGHEST = 84;
+	/** Lowest and highest pitches the staff offers: E3 to A5, a guitar's frets 0–5 in standard tuning, as written (guitar music is written an octave above how it sounds). */
+	public static final int LOWEST = 52;
+	public static final int HIGHEST = 81;
 	/**
 	 * Every note (and rest) is one beat: riffs are a plain sequence of notes, no rhythm (Mark: "only use full notes").
 	 * Riffs that arrive with other lengths are evened out by {@link #evenly}.
