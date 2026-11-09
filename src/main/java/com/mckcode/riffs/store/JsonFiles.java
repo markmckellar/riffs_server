@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 /**
- * Reading and writing the JSON data files (users.json, games.json). Writes go to a temp file that is then moved
+ * Reading and writing the JSON data files (users.json, one file per game). Writes go to a temp file that is then moved
  * into place, so a crash mid-write never leaves half a file. This is the "JSON files for now" store; a database
  * can replace it behind the services later.
  */

@@ -7,7 +7,7 @@ import java.util.Map;
 
 import com.mckcode.riffs.music.Note;
 
-/** One game between two players, as stored in games.json. Plain fields so Jackson can read and write it. */
+/** One game between two players, as stored in its own file (see GameStore). Plain fields so Jackson can read and write it. */
 public class Game {
 
 	/**

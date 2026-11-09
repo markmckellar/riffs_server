@@ -1,6 +1,5 @@
 package com.mckcode.riffs.game;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -8,58 +7,56 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.mckcode.riffs.events.EventService;
 import com.mckcode.riffs.music.MusicSense;
 import com.mckcode.riffs.music.Note;
 import com.mckcode.riffs.music.RiffRules;
-import com.mckcode.riffs.store.JsonFiles;
 import com.mckcode.riffs.user.Bots;
 import com.mckcode.riffs.user.User;
 import com.mckcode.riffs.user.UserService;
 
 /**
  * The game rules in action: starting games (with a person or a bot), sending riffs, guessing, hints, and turning
- * a game into what one player is allowed to see. All changes are saved to games.json at once.
+ * a game into what one player is allowed to see. Every change is saved at once, to that game's own file
+ * ({@link GameStore}).
  */
 @Service
 public class GameService {
 
-	private final Path file;
-	private final Map<String, Game> games;
+	private final GameStore store;
 	private final UserService users;
 	private final EventService events;
 	private final Random random = new Random();
 
-	public GameService(@Value("${riffs.data-dir:local/data}") String dataDir, UserService users, EventService events) {
-		this.file = Paths.get(dataDir, "games.json");
-		this.games = new LinkedHashMap<>(JsonFiles.read(file, new TypeReference<Map<String, Game>>() {
-		}, new LinkedHashMap<>()));
+	@Autowired
+	public GameService(@Value("${riffs.data-dir:local/data}") String dataDir, @Value("${riffs.games.keep-days:30}") int keepDays,
+			UserService users, EventService events) {
+		this.store = new GameStore(Paths.get(dataDir), keepDays);
 		this.users = users;
 		this.events = events;
-		// games saved when guitars had more strings: cap them at today's number
-		for (Game g : games.values())
-			for (Game.PlayerState s : g.state.values())
-				s.strings = Math.min(s.strings, GameRules.STRINGS);
+	}
+
+	public GameService(String dataDir, UserService users, EventService events) {
+		this(dataDir, 30, users, events);
 	}
 
 	// ---- reading
 
 	public synchronized Game get(String id) {
-		Game g = games.get(id);
+		Game g = store.get(id);
 		if (g == null) throw error(HttpStatus.NOT_FOUND, "no such game");
 		return g;
 	}
 
 	public synchronized List<Game> gamesOf(String userId) {
-		return games.values().stream().filter(g -> g.players.contains(userId) && !Game.CANCELLED.equals(g.status))
+		return store.gamesOf(userId).stream().filter(g -> g.players.contains(userId) && !Game.CANCELLED.equals(g.status))
 				.sorted(Comparator.comparing((Game g) -> !g.open()).thenComparing(g -> -g.updatedAt)).toList();
 	}
 
@@ -82,7 +79,7 @@ public class GameService {
 	/** Games where it's a bot's move, for {@link BotPlayer}. */
 	public synchronized List<Game> botTurns() {
 		List<Game> l = new ArrayList<>();
-		for (Game g : games.values()) {
+		for (Game g : store.openGames()) {
 			if (!Game.ACTIVE.equals(g.status)) continue;
 			Game.Round r = g.current();
 			String mover = Game.Round.COMPOSING.equals(r.phase) ? r.composer : r.listener;
@@ -110,8 +107,8 @@ public class GameService {
 		if (existing != null && !quick) return existing;
 
 		Game g = new Game();
-		g.id = UUID.randomUUID().toString().substring(0, 8);
 		g.createdAt = g.updatedAt = System.currentTimeMillis();
+		g.id = GameStore.newId(g.createdAt);
 		g.players.add(me);
 		g.players.add(opp);
 		g.state.put(me, new Game.PlayerState());
@@ -123,8 +120,7 @@ public class GameService {
 			g.invitedAt = g.createdAt;
 			g.quick = quick;
 		}
-		games.put(g.id, g);
-		save();
+		store.add(g);
 		if (!Bots.isBot(opp)) events.publish(opp, "challenge", g.id, name(me) + " challenged you to a game.");
 		return g;
 	}
@@ -171,7 +167,7 @@ public class GameService {
 	/** Quick match challenges nobody accepted in time go to a bot (checked every few seconds by {@link BotPlayer}). */
 	public synchronized void expireInvites() {
 		long now = System.currentTimeMillis();
-		for (Game g : games.values()) {
+		for (Game g : store.openGames()) {
 			if (!Game.INVITED.equals(g.status) || !g.quick || now - g.invitedAt < GameRules.QUICK_INVITE_MS) continue;
 			String was = g.invited, starter = g.other(was);
 			String bot = toBot(g);
@@ -189,6 +185,7 @@ public class GameService {
 		String bot = from.get(random.nextInt(from.size())).id();
 		g.players.set(g.players.indexOf(was), bot);
 		g.state.put(bot, g.state.remove(was));
+		store.addPlayer(g, bot);
 		for (Game.Round r : g.rounds) {
 			if (was.equals(r.composer)) r.composer = bot;
 			if (was.equals(r.listener)) r.listener = bot;
@@ -223,13 +220,13 @@ public class GameService {
 
 	/** A game between the two that's on, or a challenge between them waiting for an answer. */
 	private Game activeBetween(String a, String b) {
-		return games.values().stream().filter(g -> g.open() && g.players.contains(a) && g.players.contains(b))
+		return store.openGames().stream().filter(g -> g.open() && g.players.contains(a) && g.players.contains(b))
 				.findFirst().orElse(null);
 	}
 
 	/** Already asked by Quick match and not answered yet: don't pile more on. */
 	private boolean hasOpenInvite(String userId) {
-		return games.values().stream().anyMatch(g -> Game.INVITED.equals(g.status) && g.quick && userId.equals(g.invited));
+		return store.openGames().stream().anyMatch(g -> Game.INVITED.equals(g.status) && g.quick && userId.equals(g.invited));
 	}
 
 	private void newRound(Game g, String composer) {
@@ -490,11 +487,7 @@ public class GameService {
 
 	private void touch(Game g) {
 		g.updatedAt = System.currentTimeMillis();
-		save();
-	}
-
-	private void save() {
-		JsonFiles.write(file, games);
+		store.save(g);
 	}
 
 	private String name(String userId) {
