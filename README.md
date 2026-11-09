@@ -32,9 +32,11 @@ or (better, so the consent screen shows the game's name) make a new client in th
 | GET | `/api/health` | |
 | GET | `/api/auth/config` | game name, Google client id, dev-login on?, who is signed in |
 | POST | `/api/auth/google` `{credential}` · `/api/auth/dev` `{name}` · `/api/auth/logout` | |
-| GET | `/api/players` | everyone (people and bots), online flag, wins/losses |
+| GET | `/api/home` | people online now, and everyone I've played (online flag, wins/losses, the open game with them) |
+| GET | `/api/players?q=name` | find players by name |
 | GET | `/api/games` | my games, active first |
-| POST | `/api/games` `{opponentId?}` | start a game; no opponent = quick match (someone online, else a bot) |
+| POST | `/api/games` `{opponentId?}` | start a game; no opponent = quick match (someone online, else a bot). With a person it's a challenge (status `invited`) until they accept; a Quick match one goes to a bot after 60 s or a no |
+| POST | `/api/games/{id}/accept` · `/decline` · `/bot` | answer a challenge; `/bot`: the challenger plays a declined one with a bot |
 | GET | `/api/games/{id}` | the game as I may see it |
 | POST | `/api/games/{id}/riff` `{notes:[{m,b}], tuneId?}` | send my riff (m = MIDI pitch or null for a rest, b = beats) |
 | POST | `/api/games/{id}/guess` `{notes:[midi…]}` | guess; each note is marked exact / octave / close (+up/down) / miss |

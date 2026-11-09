@@ -10,7 +10,11 @@ import com.mckcode.riffs.music.Note;
 /** One game between two players, as stored in games.json. Plain fields so Jackson can read and write it. */
 public class Game {
 
-	public static final String ACTIVE = "active", FINISHED = "finished";
+	/**
+	 * invited: a challenge to a person, waiting for them to accept (the challenger may already write the first riff);
+	 * declined: they said no; cancelled: the challenger withdrew it (hidden). Bot games start active.
+	 */
+	public static final String INVITED = "invited", ACTIVE = "active", FINISHED = "finished", DECLINED = "declined", CANCELLED = "cancelled";
 
 	public String id;
 	public long createdAt;
@@ -20,8 +24,17 @@ public class Game {
 	public String winner;
 	/** Who resigned, if the game ended that way. */
 	public String resigned;
+	/** While invited: who was challenged, when, and whether by Quick match (then a bot takes over if they don't answer). */
+	public String invited;
+	public long invitedAt;
+	public boolean quick;
 	public Map<String, PlayerState> state = new LinkedHashMap<>();
 	public List<Round> rounds = new ArrayList<>();
+
+	/** Going on, or a challenge waiting for an answer. */
+	public boolean open() {
+		return ACTIVE.equals(status) || INVITED.equals(status);
+	}
 
 	public String other(String userId) {
 		return players.get(0).equals(userId) ? players.get(1) : players.get(0);

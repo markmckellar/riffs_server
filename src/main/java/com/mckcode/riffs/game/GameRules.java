@@ -19,6 +19,8 @@ public final class GameRules {
 	public static final int NOTES_FOR_HINT = 5, NOTES_FOR_EXTRA_STRING = 6;
 	/** Learner mode: a free note after every this-many wrong guesses in a round. */
 	public static final int LEARNER_FREE_NOTE_EVERY = 2;
+	/** Quick match asks someone online first; if they don't accept within this long (or say no), a bot plays instead. */
+	public static final long QUICK_INVITE_MS = 60_000;
 
 	private GameRules() {
 	}

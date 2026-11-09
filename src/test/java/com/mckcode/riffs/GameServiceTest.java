@@ -42,9 +42,70 @@ class GameServiceTest {
 		games = new GameService(dir, users, events);
 	}
 
+	/** A game between two people: a challenge, accepted. */
+	Game started(String from, String to) {
+		Game g = games.start(from, to);
+		assertEquals(Game.INVITED, g.status);
+		return games.accept(to, g.id);
+	}
+
+	@Test
+	void aChallengeWaitsForAnAnswer() {
+		Game g = games.start(a, b);
+		assertEquals("invited", games.view(g, b).get("turn"));
+		assertTrue(events.after(b, 0).stream().anyMatch(e -> e.type().equals("challenge")));
+		// Ann can write her riff meanwhile; Bob can't do anything but answer
+		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1 C4:1"), null);
+		assertFalse(events.after(b, 0).stream().anyMatch(e -> e.type().equals("riff_ready")));
+		assertThrows(ResponseStatusException.class, () -> games.guess(b, g.id, List.of(60, 62, 64, 60), null));
+		assertEquals(g, games.start(a, b), "challenging again opens the same game");
+		games.accept(b, g.id);
+		assertEquals(Game.ACTIVE, g.status);
+		assertEquals("guess", games.view(g, b).get("turn"));
+		assertEquals(Map.of(b, g.updatedAt), Map.copyOf(games.pastOpponents(a)));
+	}
+
+	@Test
+	void aDeclinedChallengeCanGoToABot() {
+		Game g = games.start(a, b);
+		games.decline(b, g.id);
+		assertEquals(Game.DECLINED, g.status);
+		assertEquals("declined", games.view(g, a).get("turn"));
+		games.playBot(a, g.id);
+		assertEquals(Game.ACTIVE, g.status);
+		assertTrue(g.other(a).startsWith("bot:"));
+		assertFalse(games.gamesOf(b).contains(g));
+	}
+
+	@Test
+	void quickMatchAsksSomeoneOnlineThenABotIfTheySayNo() {
+		Game g = games.start(a, null);    // Bob signed in just now: online
+		assertEquals(b, g.invited);
+		assertTrue(g.quick);
+		games.decline(b, g.id);
+		assertEquals(Game.ACTIVE, g.status);
+		assertTrue(g.other(a).startsWith("bot:"));
+		assertEquals(g.other(a), g.current().listener);
+	}
+
+	@Test
+	void withdrawingAChallengeHidesIt() {
+		Game g = games.start(a, b);
+		games.resign(a, g.id);
+		assertEquals(Game.CANCELLED, g.status);
+		assertTrue(games.gamesOf(b).isEmpty());
+		assertEquals(0, users.get(a).get().losses);
+	}
+
+	@Test
+	void aRiffSpansAtMostAnOctaveAndAFifth() {
+		assertNull(RiffRules.problem(MusicSenseTest.notes("C4:1 D4:1 E4:1 G5:1")));
+		assertTrue(RiffRules.problem(MusicSenseTest.notes("C4:1 D4:1 E4:1 G#5:1")).contains("octave and a fifth"));
+	}
+
 	@Test
 	void aRoundFromRiffToGuess() {
-		Game g = games.start(a, b);
+		Game g = started(a, b);
 		assertEquals(a, g.current().composer);
 		assertThrows(ResponseStatusException.class, () -> games.submitRiff(b, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1 C4:1"), null));
 		assertThrows(ResponseStatusException.class, () -> games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1"), null));
@@ -79,7 +140,7 @@ class GameServiceTest {
 	@Test
 	void stringsLastTheWholeGame() {
 		users.setLearner(b, false);
-		Game g = games.start(a, b);
+		Game g = started(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
 		games.guess(b, g.id, WRONG, BEATS);
 		games.guess(b, g.id, WRONG, BEATS);
@@ -94,7 +155,7 @@ class GameServiceTest {
 	@Test
 	void theLastStringSnappingEndsTheGame() {
 		users.setLearner(b, false);
-		Game g = games.start(a, b);
+		Game g = started(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
 		for (int i = 0; i < GameRules.STRINGS; i++)
 			games.guess(b, g.id, WRONG, BEATS);
@@ -107,7 +168,7 @@ class GameServiceTest {
 	@Test
 	void anExtraStringPutsOneBack() {
 		users.setLearner(b, false);
-		Game g = games.start(a, b);
+		Game g = started(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);
 		games.guess(b, g.id, WRONG, BEATS);
 		g.state.get(b).extraStrings = 1;
@@ -119,7 +180,7 @@ class GameServiceTest {
 
 	@Test
 	void goldRiffsEarnTokensButLibraryRiffsDont() {
-		Game g = games.start(a, b);
+		Game g = started(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), "twinkle");
 		assertEquals(0, g.state.get(a).hints + g.state.get(a).extraStrings);
 		assertTrue(RiffRules.MAX_NOTES >= 7);
@@ -127,7 +188,7 @@ class GameServiceTest {
 
 	@Test
 	void shortGoldRiffsEarnNoExtraString() {
-		Game g = games.start(a, b);
+		Game g = started(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 D4:1 E4:1 C4:1"), null);
 		assertEquals(0, g.state.get(a).extraStrings);
 		Game g2 = games.start(b, "bot:robo_riff");
@@ -137,7 +198,7 @@ class GameServiceTest {
 
 	@Test
 	void learnersGetAFreeNoteEveryTwoMissesAndHalfPoints() {
-		Game g = games.start(a, b);    // new players start in learner mode
+		Game g = started(a, b);    // new players start in learner mode
 		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
 		Game.Round r = g.current();
 		List<Integer> wrong = List.of(60, 72, 72, 72, 72, 72, 72);
@@ -154,7 +215,7 @@ class GameServiceTest {
 	@Test
 	void noFreeNotesWithLearnerModeOff() {
 		users.setLearner(b, false);
-		Game g = games.start(a, b);
+		Game g = started(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes("C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2"), null);
 		for (int i = 0; i < 4; i++)
 			games.guess(b, g.id, List.of(60, 72, 72, 72, 72, 72, 72), BEATS);
@@ -165,7 +226,7 @@ class GameServiceTest {
 	@Test
 	void notesAreOneBeatAndOnlyPitchesCount() {
 		users.setLearner(b, false);
-		Game g = games.start(a, b);
+		Game g = started(a, b);
 		games.submitRiff(a, g.id, MusicSenseTest.notes(RIFF), null);    // RIFF ends with a half note
 		Game.Round r = g.current();
 		assertTrue(r.riff.stream().allMatch(n -> n.b() == 1.0));        // evened out: every note one beat

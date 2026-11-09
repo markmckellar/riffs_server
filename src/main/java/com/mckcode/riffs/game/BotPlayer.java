@@ -43,6 +43,7 @@ public class BotPlayer {
 
 	@Scheduled(fixedDelay = 1000, initialDelay = 2000)
 	public void tick() {
+		games.expireInvites();
 		long now = System.currentTimeMillis();
 		for (Game g : games.botTurns()) {
 			Game.Round r = g.current();

@@ -1,6 +1,7 @@
 package com.mckcode.riffs.game;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,25 +51,47 @@ public class GameController {
 		this.library = library;
 	}
 
+	/** The home screen's people: who's online now (people only; bots are always there) and everyone you've played. */
+	@GetMapping("/api/home")
+	public Map<String, Object> home(@RequestAttribute(AuthFilter.USER_ID) String me) {
+		List<Map<String, Object>> online = new ArrayList<>();
+		for (User u : users.all())
+			if (!u.bot && !u.id.equals(me) && users.isOnline(u.id)) online.add(entry(u, me));
+		List<Map<String, Object>> past = new ArrayList<>();
+		games.pastOpponents(me).forEach((id, when) -> users.get(id).ifPresent(u -> {
+			Map<String, Object> m = entry(u, me);
+			m.put("lastPlayed", when);
+			past.add(m);
+		}));
+		// online first, then the latest game
+		past.sort(Comparator.comparing((Map<String, Object> m) -> !(Boolean) m.get("online")));
+		return Map.of("online", online, "past", past);
+	}
+
+	/** Find players by name (people and bots), for challenging someone you haven't played yet. */
 	@GetMapping("/api/players")
-	public List<Map<String, Object>> players(@RequestAttribute(AuthFilter.USER_ID) String me) {
-		List<Map<String, Object>> l = new ArrayList<>();
-		for (User u : users.all()) {
-			if (u.id.equals(me)) continue;
-			Map<String, Object> m = new LinkedHashMap<>();
-			m.put("id", u.id);
-			m.put("name", u.name);
-			m.put("bot", u.bot);
-			Bots.find(u.id).ifPresent(b -> {
-				m.put("level", b.level().name());
-				m.put("about", b.about());
-			});
-			m.put("online", u.bot || users.isOnline(u.id));
-			m.put("wins", u.wins);
-			m.put("losses", u.losses);
-			l.add(m);
-		}
-		return l;
+	public List<Map<String, Object>> players(@RequestAttribute(AuthFilter.USER_ID) String me, @RequestParam(defaultValue = "") String q) {
+		String needle = q.trim().toLowerCase();
+		if (needle.isEmpty()) return List.of();
+		return users.all().stream().filter(u -> !u.id.equals(me) && u.name != null && u.name.toLowerCase().contains(needle))
+				.limit(20).map(u -> entry(u, me)).toList();
+	}
+
+	/** One player for a list: online, record, and the game you already have with them (if any). */
+	private Map<String, Object> entry(User u, String me) {
+		Map<String, Object> m = new LinkedHashMap<>();
+		m.put("id", u.id);
+		m.put("name", u.name);
+		m.put("bot", u.bot);
+		Bots.find(u.id).ifPresent(b -> {
+			m.put("level", b.level().name());
+			m.put("about", b.about());
+		});
+		m.put("online", u.bot || users.isOnline(u.id));
+		m.put("wins", u.wins);
+		m.put("losses", u.losses);
+		m.put("game", games.openGameBetween(me, u.id));
+		return m;
 	}
 
 	@GetMapping("/api/games")
@@ -86,6 +109,24 @@ public class GameController {
 		Game g = games.get(id);
 		if (!g.players.contains(me)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "not your game");
 		return games.view(g, me);
+	}
+
+	@PostMapping("/api/games/{id}/accept")
+	public Map<String, Object> accept(@RequestAttribute(AuthFilter.USER_ID) String me, @PathVariable String id) {
+		return games.view(games.accept(me, id), me);
+	}
+
+	@PostMapping("/api/games/{id}/decline")
+	public Map<String, Object> decline(@RequestAttribute(AuthFilter.USER_ID) String me, @PathVariable String id) {
+		Game g = games.decline(me, id);
+		// a Quick match challenge went to a bot: it's no longer this player's game
+		return g.players.contains(me) ? games.view(g, me) : Map.of("id", g.id, "status", Game.CANCELLED);
+	}
+
+	/** A declined (or unanswered) challenge: play it with a bot instead. */
+	@PostMapping("/api/games/{id}/bot")
+	public Map<String, Object> bot(@RequestAttribute(AuthFilter.USER_ID) String me, @PathVariable String id) {
+		return games.view(games.playBot(me, id), me);
 	}
 
 	@PostMapping("/api/games/{id}/riff")
@@ -130,7 +171,7 @@ public class GameController {
 	@GetMapping("/api/riffs/rules")
 	public Map<String, Object> rules() {
 		return Map.of("minNotes", RiffRules.MIN_NOTES, "maxNotes", RiffRules.MAX_NOTES, "maxRests", RiffRules.MAX_RESTS,
-				"lowest", RiffRules.LOWEST, "highest", RiffRules.HIGHEST, "lengths", RiffRules.LENGTHS,
+				"lowest", RiffRules.LOWEST, "highest", RiffRules.HIGHEST, "maxSpan", RiffRules.MAX_SPAN, "lengths", RiffRules.LENGTHS,
 				"strings", GameRules.STRINGS);
 	}
 

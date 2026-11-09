@@ -59,8 +59,24 @@ public class GameService {
 	}
 
 	public synchronized List<Game> gamesOf(String userId) {
-		return games.values().stream().filter(g -> g.players.contains(userId))
-				.sorted(Comparator.comparing((Game g) -> !Game.ACTIVE.equals(g.status)).thenComparing(g -> -g.updatedAt)).toList();
+		return games.values().stream().filter(g -> g.players.contains(userId) && !Game.CANCELLED.equals(g.status))
+				.sorted(Comparator.comparing((Game g) -> !g.open()).thenComparing(g -> -g.updatedAt)).toList();
+	}
+
+	/** Everyone {@code userId} has had a game with (people and bots), the latest game first, with when it was. */
+	public synchronized Map<String, Long> pastOpponents(String userId) {
+		Map<String, Long> m = new LinkedHashMap<>();
+		for (Game g : gamesOf(userId).stream().sorted(Comparator.comparing((Game g) -> -g.updatedAt)).toList()) {
+			if (Game.DECLINED.equals(g.status) || Game.INVITED.equals(g.status)) continue;    // never played
+			m.putIfAbsent(g.other(userId), g.updatedAt);
+		}
+		return m;
+	}
+
+	/** The id of a game between the two that is going on or waiting to be accepted, or null. */
+	public synchronized String openGameBetween(String a, String b) {
+		Game g = activeBetween(a, b);
+		return g == null ? null : g.id;
 	}
 
 	/** Games where it's a bot's move, for {@link BotPlayer}. */
@@ -79,7 +95,9 @@ public class GameService {
 
 	/**
 	 * A new game against {@code opponentId}, or, if that's null, quick match: someone online who isn't already
-	 * playing you, otherwise a bot. The starter composes first.
+	 * playing you, otherwise a bot. The starter composes first. A game with a person starts as a challenge
+	 * ({@link Game#INVITED}) that they accept or decline; the starter can write the first riff meanwhile. A Quick match
+	 * challenge goes to a bot if it isn't accepted within {@link GameRules#QUICK_INVITE_MS}.
 	 */
 	public synchronized Game start(String me, String opponentId) {
 		String opp = opponentId;
@@ -99,9 +117,91 @@ public class GameService {
 		g.state.put(me, new Game.PlayerState());
 		g.state.put(opp, new Game.PlayerState());
 		newRound(g, me);
+		if (!Bots.isBot(opp)) {
+			g.status = Game.INVITED;
+			g.invited = opp;
+			g.invitedAt = g.createdAt;
+			g.quick = quick;
+		}
 		games.put(g.id, g);
 		save();
-		events.publish(opp, "game_started", g.id, name(me) + " started a game with you.");
+		if (!Bots.isBot(opp)) events.publish(opp, "challenge", g.id, name(me) + " challenged you to a game.");
+		return g;
+	}
+
+	/** The challenged player says yes: the game is on (if the riff is already written, it's theirs to guess). */
+	public synchronized Game accept(String me, String gameId) {
+		Game g = invitation(gameId, me);
+		g.status = Game.ACTIVE;
+		g.invited = null;
+		touch(g);
+		events.publish(g.other(me), "challenge_accepted", g.id, name(me) + " accepted your challenge!");
+		return g;
+	}
+
+	/** The challenged player says no. A Quick match then goes to a bot; a challenge by name ends as declined. */
+	public synchronized Game decline(String me, String gameId) {
+		Game g = invitation(gameId, me);
+		String starter = g.other(me);
+		if (g.quick) {
+			String bot = toBot(g);
+			events.publish(starter, "opponent_changed", g.id, name(me) + " can't play right now, so " + name(bot) + " is playing you instead.");
+		}
+		else {
+			g.status = Game.DECLINED;
+			events.publish(starter, "challenge_declined", g.id, name(me) + " declined your challenge.");
+		}
+		touch(g);
+		return g;
+	}
+
+	/** The starter of a challenge that was declined (or isn't answered yet) plays it with a bot instead. */
+	public synchronized Game playBot(String me, String gameId) {
+		Game g = get(gameId);
+		if (!g.players.contains(me)) throw error(HttpStatus.FORBIDDEN, "not your game");
+		boolean waiting = Game.INVITED.equals(g.status) && !me.equals(g.invited);
+		boolean declined = Game.DECLINED.equals(g.status);
+		if (!waiting && !declined) throw error(HttpStatus.CONFLICT, "this game already has an opponent");
+		if (declined) g.invited = g.other(me);
+		toBot(g);
+		touch(g);
+		return g;
+	}
+
+	/** Quick match challenges nobody accepted in time go to a bot (checked every few seconds by {@link BotPlayer}). */
+	public synchronized void expireInvites() {
+		long now = System.currentTimeMillis();
+		for (Game g : games.values()) {
+			if (!Game.INVITED.equals(g.status) || !g.quick || now - g.invitedAt < GameRules.QUICK_INVITE_MS) continue;
+			String was = g.invited, starter = g.other(was);
+			String bot = toBot(g);
+			events.publish(starter, "opponent_changed", g.id, name(was) + " didn't answer, so " + name(bot) + " is playing you instead.");
+			touch(g);
+		}
+	}
+
+	/** Put a bot in the challenged player's seat (nothing has been played against them yet) and start the game. */
+	private String toBot(Game g) {
+		String was = g.invited, starter = g.other(was);
+		List<Bots.Bot> friendly = Bots.ALL.stream().filter(b -> b.level() != Bots.HARD).toList();
+		List<Bots.Bot> free = friendly.stream().filter(b -> activeBetween(starter, b.id()) == null).toList();
+		List<Bots.Bot> from = free.isEmpty() ? friendly : free;
+		String bot = from.get(random.nextInt(from.size())).id();
+		g.players.set(g.players.indexOf(was), bot);
+		g.state.put(bot, g.state.remove(was));
+		for (Game.Round r : g.rounds) {
+			if (was.equals(r.composer)) r.composer = bot;
+			if (was.equals(r.listener)) r.listener = bot;
+		}
+		g.status = Game.ACTIVE;
+		g.invited = null;
+		g.quick = false;
+		return bot;
+	}
+
+	private Game invitation(String gameId, String me) {
+		Game g = get(gameId);
+		if (!Game.INVITED.equals(g.status) || !me.equals(g.invited)) throw error(HttpStatus.CONFLICT, "there's no challenge to answer");
 		return g;
 	}
 
@@ -111,7 +211,8 @@ public class GameService {
 	 */
 	private String quickMatch(String me) {
 		List<User> people = users.all().stream()
-				.filter(u -> !u.bot && !u.id.equals(me) && users.isOnline(u.id) && activeBetween(me, u.id) == null).toList();
+				.filter(u -> !u.bot && !u.id.equals(me) && users.isOnline(u.id) && activeBetween(me, u.id) == null
+						&& !hasOpenInvite(u.id)).toList();
 		if (!people.isEmpty()) return people.get(random.nextInt(people.size())).id;
 		// hard bots only when picked by name: a random opponent shouldn't be one that wins 97% of the time
 		List<Bots.Bot> friendly = Bots.ALL.stream().filter(b -> b.level() != Bots.HARD).toList();
@@ -120,9 +221,15 @@ public class GameService {
 		return from.get(random.nextInt(from.size())).id();
 	}
 
+	/** A game between the two that's on, or a challenge between them waiting for an answer. */
 	private Game activeBetween(String a, String b) {
-		return games.values().stream().filter(g -> Game.ACTIVE.equals(g.status) && g.players.contains(a) && g.players.contains(b))
+		return games.values().stream().filter(g -> g.open() && g.players.contains(a) && g.players.contains(b))
 				.findFirst().orElse(null);
+	}
+
+	/** Already asked by Quick match and not answered yet: don't pile more on. */
+	private boolean hasOpenInvite(String userId) {
+		return games.values().stream().anyMatch(g -> Game.INVITED.equals(g.status) && g.quick && userId.equals(g.invited));
 	}
 
 	private void newRound(Game g, String composer) {
@@ -161,7 +268,8 @@ public class GameService {
 		r.phase = Game.Round.GUESSING;
 		reward(g, me, r);
 		touch(g);
-		events.publish(r.listener, "riff_ready", g.id, name(me) + " sent you a riff to guess.");
+		// a challenge not accepted yet: the challenge notice is enough, they find the riff when they accept
+		if (Game.ACTIVE.equals(g.status)) events.publish(r.listener, "riff_ready", g.id, name(me) + " sent you a riff to guess.");
 		return g;
 	}
 
@@ -313,7 +421,14 @@ public class GameService {
 	}
 
 	public synchronized Game resign(String me, String gameId) {
-		Game g = active(gameId, me);
+		Game g = get(gameId);
+		if (Game.INVITED.equals(g.status) && g.players.contains(me)) {    // withdrawing a challenge, or saying no to one
+			if (me.equals(g.invited)) return decline(me, gameId);
+			g.status = Game.CANCELLED;
+			touch(g);
+			return g;
+		}
+		g = active(gameId, me);
 		g.resigned = me;
 		finish(g, g.other(me));
 		touch(g);
@@ -359,6 +474,10 @@ public class GameService {
 	private Game active(String gameId, String me) {
 		Game g = get(gameId);
 		if (!g.players.contains(me)) throw error(HttpStatus.FORBIDDEN, "not your game");
+		if (Game.INVITED.equals(g.status)) {    // the challenger may write the first riff while waiting
+			if (me.equals(g.invited)) throw error(HttpStatus.CONFLICT, "accept the challenge first");
+			return g;
+		}
 		if (!Game.ACTIVE.equals(g.status)) throw error(HttpStatus.CONFLICT, "the game is over");
 		return g;
 	}
@@ -400,6 +519,8 @@ public class GameService {
 		m.put("winner", g.winner);
 		m.put("resigned", g.resigned);
 		m.put("updatedAt", g.updatedAt);
+		m.put("invited", g.invited);
+		m.put("quick", g.quick);
 		m.put("me", playerView(g, me));
 		m.put("opponent", playerView(g, opp));
 		List<Map<String, Object>> rounds = new ArrayList<>();
@@ -407,7 +528,9 @@ public class GameService {
 			rounds.add(roundView(r, me));
 		m.put("rounds", rounds);
 		Game.Round cur = g.current();
-		String turn = !Game.ACTIVE.equals(g.status) ? "over"
+		String turn = Game.INVITED.equals(g.status) && me.equals(g.invited) ? "invited"
+				: Game.DECLINED.equals(g.status) ? "declined"
+				: !g.open() ? "over"
 				: Game.Round.COMPOSING.equals(cur.phase) ? (me.equals(cur.composer) ? "compose" : "wait_compose")
 				: (me.equals(cur.listener) ? "guess" : "wait_guess");
 		m.put("turn", turn);

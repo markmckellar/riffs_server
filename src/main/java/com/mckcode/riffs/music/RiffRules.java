@@ -8,9 +8,15 @@ public final class RiffRules {
 	public static final int MIN_NOTES = 4;
 	public static final int MAX_NOTES = 8;
 	public static final int MAX_RESTS = 2;
-	/** Lowest and highest pitches the staff offers: E3 to A5, a guitar's frets 0–5 in standard tuning, as written (guitar music is written an octave above how it sounds). */
+	/**
+	 * Lowest and highest pitches a riff may use: E3 to G♯5, a guitar's frets 0–4 in standard tuning, as written (guitar
+	 * music is written an octave above how it sounds). Instruments with a smaller range (bass, piano keys sized for a
+	 * phone) show a riff moved to fit them (the client's ts/instrument.ts), so a riff must fit the smallest one.
+	 */
 	public static final int LOWEST = 52;
-	public static final int HIGHEST = 81;
+	public static final int HIGHEST = 80;
+	/** Lowest to highest note of one riff at most an octave and a fifth: the bass's frets 0–4 and the piano's C4–G5. */
+	public static final int MAX_SPAN = 19;
 	/**
 	 * Every note (and rest) is one beat: riffs are a plain sequence of notes, no rhythm (Mark: "only use full notes").
 	 * Riffs that arrive with other lengths are evened out by {@link #evenly}.
@@ -29,6 +35,11 @@ public final class RiffRules {
 		if (sounding < MIN_NOTES || sounding > MAX_NOTES)
 			return "a riff has " + MIN_NOTES + " to " + MAX_NOTES + " notes, not " + sounding;
 		if (rests > MAX_RESTS) return "a riff has at most " + MAX_RESTS + " rests";
+		int lo = notes.stream().filter(n -> !n.isRest()).mapToInt(Note::m).min().orElse(0);
+		int hi = notes.stream().filter(n -> !n.isRest()).mapToInt(Note::m).max().orElse(0);
+		if (hi - lo > MAX_SPAN)
+			return "from the lowest note to the highest is at most an octave and a fifth (" + Note.pitchName(lo) + " to "
+					+ Note.pitchName(hi) + " is too far)";
 		for (Note n : notes) {
 			if (!n.isRest() && (n.m() < LOWEST || n.m() > HIGHEST))
 				return Note.pitchName(n.m()) + " is outside the staff (" + Note.pitchName(LOWEST) + "–" + Note.pitchName(HIGHEST) + ")";
